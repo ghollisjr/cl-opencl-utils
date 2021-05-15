@@ -20,4 +20,7 @@
      (:file "raw-functions")
      (:file "compile")
      ;; Map-reduce
-     (:file "map-reduce")))
+     (:file "map-reduce")
+     ;; Convolutions
+     (:file "convolution")
+     ))

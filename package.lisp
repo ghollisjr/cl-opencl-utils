@@ -10,6 +10,8 @@
    :make-opencl-reducer
    ;; maps
    :make-opencl-mapper
+   ;; convolution
+   :make-opencl-convolutor
    ;;; OpenCL Lispified C DSL
    ;; clc
    :clc
@@ -60,6 +62,24 @@
    :pow
    :<<
    :>>
+   ;; math constants
+   :+maxfloat+
+   :+huge-valf+
+   :+infinity+
+   :+nan+
+   :+e+
+   :+log2e+
+   :log10e+
+   :ln2+
+   :+ln10+
+   :+pi+
+   :+pi/2+
+   :+pi/4+
+   :+1/pi+
+   :+2/pi+
+   :+2/sqrtpi+
+   :+sqrt2+
+   :+1/sqrt2+
    ;; raw-functions
    :defrawclcfun
    :deffileclcfun

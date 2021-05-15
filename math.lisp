@@ -99,3 +99,39 @@
 ;;; Alias for the pow function:
 (defclc expt (x y)
   (clc `(pow ,x ,y)))
+
+;;; Mathematical constants:
+;;;
+;;; Many constants are available in the M_* style that aren't part of
+;;; Lisp, but pi is available in Lisp, so it gets two cases for
+;;; convenience.
+
+(defclc pi ()
+  "M_PI")
+
+(defclc +e+ ()
+  "M_E")
+(defclc +log2e+ ()
+  "M_LOG2E")
+(defclc +log10e+ ()
+  "M_LOG10E")
+(defclc +ln2+ ()
+  "M_LN2")
+(defclc +ln10+ ()
+  "M_LN10")
+(defclc +pi+ ()
+  "M_PI")
+(defclc +pi/2+ ()
+  "M_PI_2")
+(defclc +pi/4+ ()
+  "M_PI_4")
+(defclc +1/pi+ ()
+  "M_1_PI")
+(defclc +2/pi+ ()
+  "M_2_PI")
+(defclc +2/sqrtpi+ ()
+  "M_2_SQRTPI")
+(defclc +sqrt2+ ()
+  "M_SQRT2")
+(defclc +1/sqrt2+ ()
+  "M_SQRT1_2")
