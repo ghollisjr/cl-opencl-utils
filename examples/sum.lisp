@@ -16,7 +16,7 @@
                              +OPENCL-ADD-REXPR+)
       (let* ((databuf
               (cl-create-buffer context
-                                +CL-MEM-WRITE-ONLY+
+                                :flags +CL-MEM-WRITE-ONLY+
                                 :type :float
                                 :data
                                 (loop

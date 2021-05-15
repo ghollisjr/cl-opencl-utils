@@ -1,3 +1,4 @@
+(require 'cl-opencl-utils)
 (in-package :cl-opencl-utils)
 
 (defun reduce-example ()
@@ -38,7 +39,7 @@
     (destructuring-bind (logmap map-kernel map-program)
         (make-opencl-mapper queue :float
                             (lambda (x)
-                              (format nil "log(~a)" x)))
+                              (clc `(log ,x))))
       (let* ((data
               (loop
                  for i from 1 to 10000
@@ -58,7 +59,8 @@
                  (list (funcall logmap inbuf outbuf)
                        (cl-enqueue-read-buffer
                         queue outbuf
-                        (list :array :float (length data)))))))))
+                        :float
+                        (length data))))))))
         (cl-release-kernel map-kernel)
         (cl-release-program map-program)
         (mapcar #'cl-release-mem-object
@@ -79,7 +81,7 @@
     (destructuring-bind (logmap logmap-kernel logmap-program)
         (make-opencl-mapper queue :float
                             (lambda (x)
-                              (format nil "log(~a)" x)))
+                              `(log ,x)))
       (destructuring-bind (reducefn reduce-kernel reduce-program)
           (make-opencl-reducer queue :float +OPENCL-ADD-REXPR+)
         (let* ((data

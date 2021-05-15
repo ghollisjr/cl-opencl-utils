@@ -1,50 +1,9 @@
 (in-package :cl-opencl-utils)
 
-;;; utility functions
-
-;; Modified version of c-type-name from CFFI's groveler.  As per their
-;; request, here's their message:
-#|
-Copyright (C) 2005-2007, James Bielman  <jamesjb@jamesjb.com>
-
-Permission is hereby granted, free of charge, to any person
-obtaining a copy of this software and associated documentation
-files (the "Software"), to deal in the Software without
-restriction, including without limitation the rights to use, copy,
-modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT.  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-DEALINGS IN THE SOFTWARE.
-|#
-;; I've modified their code, and I don't offer you any warranties
-;; either.
-(defun c-type-name (type-keyword)
-  (case type-keyword
-    ((:uchar :unsigned-char) "unsigned char")
-    ((:unsigned-short :ushort) "unsigned short")
-    ((:unsigned-int :uint) "unsigned int")
-    ((:unsigned-long :ulong) "unsigned long")
-    ((:long-long :llong) "long long")
-    ((:unsigned-long-long :ullong) "unsigned long long")
-    (:pointer "void*")
-    (:string "char*")
-    (t (cffi::foreign-name type-keyword nil))))
-
 ;;; Reductions
 (defparameter +OPENCL-ADD-REXPR+
   (lambda (x y)
-    (format nil "((~a) + (~a))" x y)))
+    `(+ ,x ,y)))
 
 (defun make-opencl-reducer (queue type rexpr
                             &key
@@ -64,9 +23,9 @@ queue must be an OpenCL queue handle.
 type should be a CFFI type designator.
 
 rexpr should be a Lisp function accepting two strings and returning
-OpenCL C code for an expression of a binary operation.  The expression
-can refer to code defined in the preamble string argument or included
-in one of the headers.
+either Lispified OpenCL C code or a string for an OpenCL C expression
+of a binary operation.  The expression can refer to code defined in
+the preamble string argument or included in one of the headers.
 
 memobj is the source memory buffer.
 
@@ -87,58 +46,58 @@ included.
 
 kernel and program will need to be released at some point once you're
 done using the reducer."
-  (let* ((typename (c-type-name type))
-         
-         (kernel-source
+  (let* ((kernel-source
           (concatenate
            'string
            (format nil "~{#include \"~a\"~^~%~}"
                    headers)
            preamble
-           (format nil "
-__kernel
-void reduce(__global ~a *input,
-            __global long unsigned int *startend,
-            __global ~a *output,
-            __local ~a *acc)
-{
-  const int nwork = get_local_size(0);
-  const int gid = get_global_id(0);
-  const int wid = get_local_id(0);
-  const long unsigned int start = startend[0];
-  const long unsigned int end = startend[1];
-  acc[wid] = 0;
-  barrier(CLK_LOCAL_MEM_FENCE);
-  if((start + gid) < end) {
-    acc[wid] = input[start + gid];
-    barrier(CLK_LOCAL_MEM_FENCE);
-    int niter = ceil(log2((float) nwork));
-    for(int i = 0; i < niter; ++i) {
-      const int stride = (1<<(i+1));
-      if((wid%stride) == 0) {
-        const int next = wid + (1<<i);
-        if(next < nwork) {
-          acc[wid] = ~a;
-        }
-      }
-      barrier(CLK_LOCAL_MEM_FENCE);
-    }
-    if(wid == 0) {
-      output[get_group_id(0)] = acc[0];
-    }
-  }
-}
-"
-                   typename typename typename
-                   (funcall rexpr "acc[wid]" "acc[next]"))))
-         (context (cl-get-command-queue-info 
+           (program-source-from-forms-fn
+            `(kernel :void reduce
+                     ((var (global (pointer ,type)) input)
+                      (var (global (pointer :ulong)) startend)
+                      (var (global (pointer ,type)) output)
+                      (var (local (pointer ,type)) acc))
+                     (var (const :int) nwork (get-local-size 0))
+                     (var (const :int) gid (get-global-id 0))
+                     (var (const :int) wid (get-local-id 0))
+                     (var (const :ulong) start (aref startend 0))
+                     (var (const :ulong) end (aref startend 1))
+                     (setf (aref acc wid) 0)
+                     (barrier +CLK-LOCAL-MEM-FENCE+)
+                     (when (< (+ start gid)
+                              end)
+                       (setf (aref acc wid)
+                             (aref input
+                                   (+ start gid)))
+                       (barrier +CLK-LOCAL-MEM-FENCE+)
+                       (var :int niter
+                            (ceil (log2 (typecast :float nwork))))
+                       (for (var int i 0) (< i niter) (incf i)
+                            (var (const :int) stride
+                                 (<< 1
+                                     (+ i 1)))
+                            (when (zerop (mod wid stride))
+                              (var (const :int) next
+                                   (+ wid (<< 1 i)))
+                              (when (< next nwork)
+                                (setf (aref acc wid)
+                                      ,(funcall rexpr
+                                                `(aref acc wid)
+                                                `(aref acc next)))))
+                            (barrier +CLK-LOCAL-MEM-FENCE+))
+                       (when (zerop wid)
+                         (setf (aref output
+                                     (get-group-id 0))
+                               (aref acc 0))))))))
+         (context (cl-get-command-queue-info
                    queue +CL-QUEUE-CONTEXT+))
-         (dev (cl-get-command-queue-info 
+         (dev (cl-get-command-queue-info
                queue +CL-QUEUE-DEVICE+))
          (program
-          (cl-create-program-with-source context kernel-source)))
-    (cl-build-program program (list dev)
-                      :options options)
+           (cl-create-program-with-source context kernel-source)))
+    (cl-build-program-with-log program (list dev)
+                               :options options)
     (let* ((kernel
             (cl-create-kernel program "reduce"))
            (reducefn
@@ -213,7 +172,7 @@ void reduce(__global ~a *input,
                              (progn
                                (setf buf1 outbuf2)
                                (setf buf2 outbuf1)))
-                         (push 
+                         (push
                           (cl-enqueue-write-buffer queue
                                                    startendbuf
                                                    :ulong
@@ -298,43 +257,44 @@ included.
 
 kernel and program will need to be released at some point once you're
 done using the reducer."
-  (let* ((input-typename (c-type-name input-type))
-         (output-type (if output-type output-type input-type))
-         (output-typename (c-type-name output-type))
+  (let* ((output-type (if output-type output-type input-type))
          (kernel-source
           (concatenate
            'string
            (format nil "~{#include \"~a\"~^~%~}"
                    headers)
            preamble
-           (format nil "
-__kernel
-void map(__global ~a *input,
-         __global long unsigned int *input_startend,
-         __global long unsigned int *output_start,
-         __global ~a *output)
-{
-  const int nwork = get_local_size(0);
-  const int gid = get_global_id(0);
-  const int wid = get_local_id(0);
-  const long unsigned int start = input_startend[0];
-  const long unsigned int end = input_startend[1];
-  const long unsigned int outstart = output_start[0];
-  if((start + gid) < end) {
-    output[outstart + gid] = ~a;
-  }
-}
-"
-                   input-typename output-typename
-                   (funcall mexpr "input[start + gid]"))))
-         (context (cl-get-command-queue-info 
+           (program-source-from-forms-fn
+            `(kernel :void map
+                     ((var (global (pointer ,input-type)) input)
+                      (var (global (pointer :ulong)) input_startend)
+                      (var (global (pointer :ulong)) output_start)
+                      (var (global (pointer ,output-type)) output))
+                     (var (const :int) nwork
+                          (get-local-size 0))
+                     (var (const :int) gid
+                          (get-global-id 0))
+                     (var (const :int) wid
+                          (get-local-id 0))
+                     (var (const :ulong) start
+                          (aref input_startend 0))
+                     (var (const :ulong) end
+                          (aref input_startend 1))
+                     (var (const :ulong) outstart
+                          (aref output_start 0))
+                     (when (< (+ start gid)
+                              end)
+                       (setf (aref output (+ outstart gid))
+                             ,(funcall mexpr
+                                       `(aref input (+ start gid)))))))))
+         (context (cl-get-command-queue-info
                    queue +CL-QUEUE-CONTEXT+))
-         (dev (cl-get-command-queue-info 
+         (dev (cl-get-command-queue-info
                queue +CL-QUEUE-DEVICE+))
          (program
-          (cl-create-program-with-source context kernel-source)))
-    (cl-build-program program (list dev)
-                      :options options)
+           (cl-create-program-with-source context kernel-source)))
+    (cl-build-program-with-log program (list dev)
+                               :options options)
     (let* ((kernel
             (cl-create-kernel program "map"))
            (mapfn
