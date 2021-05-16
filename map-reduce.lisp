@@ -77,14 +77,14 @@ done using the reducer."
                              (aref input
                                    (+ start gid)))
                        (barrier +CLK-LOCAL-MEM-FENCE+)
-                       (var niter :int
+                       (var niter :ulong
                             (ceil (log2 (coerce nwork :float))))
-                       (for (var i :int 0) (< i niter) (incf i)
+                       (for (var i :ulong 0) (< i niter) (incf i)
                             (var stride (const :int)
                                  (<< 1
                                      (+ i 1)))
                             (when (zerop (mod wid stride))
-                              (var next (const :int)
+                              (var next (const :ulong)
                                    (+ wid (<< 1 i)))
                               (when (< next nwork)
                                 (setf (aref acc wid)
