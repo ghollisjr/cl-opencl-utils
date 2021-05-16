@@ -67,11 +67,12 @@
    :pow
    :<<
    :>>
-   ;; math constants
+   ;;; math constants
    :+maxfloat+
    :+huge-valf+
    :+infinity+
    :+nan+
+   ;; double
    :+e+
    :+log2e+
    :log10e+
@@ -85,6 +86,7 @@
    :+2/sqrtpi+
    :+sqrt2+
    :+1/sqrt2+
+   ;; single
    :+e-f+
    :+log2e-f+
    :log10e-f+
@@ -98,6 +100,20 @@
    :+2/sqrtpi-f+
    :+sqrt2-f+
    :+1/sqrt2-f+
+   ;; half
+   :+e-h+
+   :+log2e-h+
+   :log10e-h+
+   :ln2-h+
+   :+ln10-h+
+   :+pi-h+
+   :+pi/2-h+
+   :+pi/4-h+
+   :+1/pi-h+
+   :+2/pi-h+
+   :+2/sqrtpi-h+
+   :+sqrt2-h+
+   :+1/sqrt2-h+
    ;; raw-functions
    :defrawclcfun
    :deffileclcfun
