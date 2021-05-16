@@ -10,7 +10,7 @@
           (cl-create-context plat (list dev)))
          (queue
           (cl-create-command-queue context dev)))
-    (destructuring-bind (reducefn reduce-kernel reduce-program)
+    (destructuring-bind (reducefn reducecleanup)
         (make-opencl-reducer queue :float +OPENCL-ADD-REXPR+)
       (let* ((data (loop
                       for i from 1 to 10000
@@ -22,9 +22,10 @@
               (first
                (cl-wait-and-release-events
                 (list (funcall reducefn buf))))))
-        (cl-release-kernel reduce-kernel)
-        (cl-release-program reduce-program)
+        (funcall reducecleanup)
         (cl-release-mem-object buf)
+        (cl-release-command-queue queue)
+        (cl-release-context context)
         result))))
 
 (defun map-example ()
@@ -36,10 +37,10 @@
           (cl-create-context plat (list dev)))
          (queue
           (cl-create-command-queue context dev)))
-    (destructuring-bind (logmap map-kernel map-program)
+    (destructuring-bind (logmap logmapcleanup)
         (make-opencl-mapper queue :float
                             (lambda (x)
-                              (clc `(log ,x))))
+                              `(log ,x)))
       (let* ((data
               (loop
                  for i from 1 to 10000
@@ -60,9 +61,9 @@
                        (cl-enqueue-read-buffer
                         queue outbuf
                         :float
-                        (length data))))))))
-        (cl-release-kernel map-kernel)
-        (cl-release-program map-program)
+                        (length data))))))
+               ))
+        (funcall logmapcleanup)
         (mapcar #'cl-release-mem-object
                 (list inbuf outbuf))
         (cl-release-command-queue queue)
@@ -78,11 +79,11 @@
           (cl-create-context plat (list dev)))
          (queue
           (cl-create-command-queue context dev)))
-    (destructuring-bind (logmap logmap-kernel logmap-program)
+    (destructuring-bind (logmap logmapcleanup)
         (make-opencl-mapper queue :float
                             (lambda (x)
                               `(log ,x)))
-      (destructuring-bind (reducefn reduce-kernel reduce-program)
+      (destructuring-bind (reducefn reducecleanup)
           (make-opencl-reducer queue :float +OPENCL-ADD-REXPR+)
         (let* ((data
                 (loop
@@ -102,10 +103,8 @@
                   (cl-wait-and-release-events
                    (list (funcall logmap inbuf outbuf)
                          (funcall reducefn outbuf)))))))
-          (cl-release-kernel reduce-kernel)
-          (cl-release-program reduce-program)
-          (cl-release-kernel logmap-kernel)
-          (cl-release-program logmap-program)
+          (funcall reducecleanup)
+          (funcall logmapcleanup)
           (mapcar #'cl-release-mem-object
                   (list inbuf outbuf))
           (cl-release-command-queue queue)

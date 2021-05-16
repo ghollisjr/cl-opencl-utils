@@ -1,14 +1,14 @@
 (in-package :cl-opencl-utils)
 
 ;; Simple declaration and copy construction
-(defclc var (type name &optional value)
+(defclc var (name type &optional value)
   (with-output-to-string (out)
     (format out "~a ~a" (clc type) (clc name))
     (when value
       (format out " = ~a" (clc value)))))
 
 ;; Array declaration
-(defclc vararray (type name dimensions &rest inits)
+(defclc vararray (name type dimensions &rest inits)
   (with-output-to-string (s)
     (format s "~a ~a~{[~a]~}" (clc type) (clc name)
             (mapcar #'clc dimensions))

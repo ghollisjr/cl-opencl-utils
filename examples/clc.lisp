@@ -7,10 +7,10 @@
 ;;;; libraries using cl-opencl.
 ;;;;
 ;;;; Kernels and other functions are defined in Lisp code like so:
-(defclckernel :void hello
-    ((var (global (pointer :uint)) n)
-     (var (global (pointer :uint)) buf))
-  (var int gid (get-global-id 0))
+(defclckernel hello
+    ((var n (global (pointer :uint)))
+     (var buf (global (pointer :uint))))
+  (var gid :int (get-global-id 0))
   (when (< gid (value n))
     (setf (aref buf gid)
           gid)))
@@ -40,7 +40,7 @@
            ;; program-source-from-kernels tool above.
            ;; 
            ;; (program-source-from-forms
-           ;;   (kernel :void hello
+           ;;   (kernel hello
            ;;           ((var (global (pointer :uint)) n)
            ;;            (var (global (pointer :uint)) buf))
            ;; 
@@ -107,5 +107,6 @@
         (cl-release-program program)
         (cl-release-mem-object outbuf)
         (cl-release-mem-object nbuf)
+        (cl-release-command-queue queue)
         (cl-release-context context)
         result))))

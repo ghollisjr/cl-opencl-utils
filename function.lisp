@@ -1,11 +1,12 @@
 (in-package :cl-opencl-utils)
 
 (defparameter *clc-funs*
-  (make-hash-table :test 'eq)
-  "Map from OpenCL C function symbol to code")
+  (make-hash-table :test 'equal)
+  "Map from OpenCL C function symbol or string to function code
+  description")
 
 (defparameter *clc-alt-funs*
-  (make-hash-table :test 'eq)
+  (make-hash-table :test 'equal)
   "Map from OpenCL C function symbol to alternative definitions")
 
 (defparameter *explicit-funs*
@@ -34,21 +35,21 @@ or :reset."
   "Returns explicit OpenCL C function dependencies of that symbol."
   (values (gethash symbol *explicit-funs*)))
 
-(defmacro defclcfun (type fname clc-args &body body)
+(defmacro defclcfun (fname return-type clc-args &body body)
   "Defines a OpenCL C function which is loaded automatically into a
 program's code."
   `(setf (gethash ',fname
                   *clc-funs*)
-         (list :type ',type
+         (list :type ',return-type
                :clc-args ',clc-args
                :body ',body)))
 
-(defmacro defclckernel (type fname clc-args &body body)
+(defmacro defclckernel (fname clc-args &body body)
   "Defines a OpenCL C kernel which is loaded automatically into a
 program's code."
   `(setf (gethash ',fname
                   *clc-funs*)
-         (list :type `(type __kernel ,',type)
+         (list :type `(type __kernel :void)
                :clc-args ',clc-args
                :body ',body)))
 
@@ -58,9 +59,9 @@ program's code."
 (defmacro undefclckernel (fname)
   `(remhash ',fname *clc-funs*))
 
-(defmacro defclcaltfun (type fname clc-args &body body)
+(defmacro defclcaltfun (fname return-type clc-args &body body)
   (alexandria:with-gensyms (fnam typ cas bod altfuns)
-    `(let ((,typ ',type)
+    `(let ((,typ ',return-type)
            (,fnam ',fname)
            (,cas ',clc-args)
            (,bod ',body))
@@ -122,12 +123,12 @@ program's code."
   "Returns OpenCL C code for the definition of a function."
   (destructuring-bind (&key type clc-args body)
       (gethash fsym *clc-funs*)
-    `(function ,type ,fsym ,clc-args ,@body)))
+    `(function ,fsym ,type ,clc-args ,@body)))
 
 (defun prototype (function-code)
   "Returns OpenCL C code for the prototype of a function definition"
   (with-output-to-string (out)
-    (destructuring-bind (type fname clc-args &rest body)
+    (destructuring-bind (fname type clc-args &rest body)
         (rest function-code)
       (format out "~a ~a(~{~a~^,~})"
               (clc type)
@@ -140,7 +141,7 @@ program's code."
      collecting
        (destructuring-bind (&key type clc-args body)
            def
-         `(function ,type ,fsym ,clc-args ,@body))))
+         `(function ,fsym ,type ,clc-args ,@body))))
 
 (defun altprototypes (altdefs)
   (loop

@@ -11,7 +11,7 @@
           (cl-create-context plat (list dev)))
          (queue
           (cl-create-command-queue context dev)))
-    (destructuring-bind (clsum clsumk clsump)
+    (destructuring-bind (clsum clsumcleanup)
         (make-opencl-reducer queue :float
                              +OPENCL-ADD-REXPR+)
       (let* ((databuf
@@ -27,7 +27,8 @@
                  (cl-wait-and-release-events
                   (list 
                    (funcall clsum databuf))))))
-          (cl-release-kernel clsumk)
-          (cl-release-program clsump)
+          (funcall clsumcleanup)
           (cl-release-mem-object databuf)
+          (cl-release-command-queue queue)
+          (cl-release-context context)
           result)))))

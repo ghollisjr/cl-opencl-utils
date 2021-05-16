@@ -23,4 +23,8 @@
      (:file "map-reduce")
      ;; Convolutions
      (:file "convolution")
+     ;; Function sampling
+     (:file "function-sampling")
+     ;; Integration
+     (:file "integration")
      ))

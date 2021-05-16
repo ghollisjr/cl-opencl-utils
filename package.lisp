@@ -5,6 +5,7 @@
   (:export
    ;; utils
    :c-type-name
+   :opencl-function-expr
    ;; reductions
    :+OPENCL-ADD-REXPR+
    :make-opencl-reducer
@@ -12,6 +13,10 @@
    :make-opencl-mapper
    ;; convolution
    :make-opencl-convolutor
+   ;; Sampling functions
+   :make-opencl-function-sampler
+   ;; Midpoint rule integration
+   :make-opencl-integrator
    ;;; OpenCL Lispified C DSL
    ;; clc
    :clc

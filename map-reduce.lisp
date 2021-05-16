@@ -2,21 +2,22 @@
 
 ;;; Reductions
 (defparameter +OPENCL-ADD-REXPR+
-  (lambda (x y)
-    `(+ ,x ,y)))
+  (opencl-function-expr '+))
 
 (defun make-opencl-reducer (queue type rexpr
                             &key
                               (preamble "")
                               headers
                               options)
-  "Returns a list (function kernel program) where function is of the form
+  "Returns a list (reducer cleanup) where reducer is of the form
 
 (lambda (buffer &key start end) ...)
 
 that will perform a reduction operation according to the input
 parameters.  buffer must an OpenCL memory object, and start and end
-are optional indices into the buffer.
+are optional indices into the buffer.  cleanup should be called once
+the reducer is done being used so that OpenCL memory can be cleaned
+up.
 
 queue must be an OpenCL queue handle.
 
@@ -53,16 +54,21 @@ done using the reducer."
                    headers)
            preamble
            (program-source-from-forms-fn
-            `(kernel :void reduce
-                     ((var (global (pointer ,type)) input)
-                      (var (global (pointer :ulong)) startend)
-                      (var (global (pointer ,type)) output)
-                      (var (local (pointer ,type)) acc))
-                     (var (const :int) nwork (get-local-size 0))
-                     (var (const :int) gid (get-global-id 0))
-                     (var (const :int) wid (get-local-id 0))
-                     (var (const :ulong) start (aref startend 0))
-                     (var (const :ulong) end (aref startend 1))
+            `(kernel reduce
+                     ((var input (global (pointer ,type)))
+                      (var startend (global (pointer :ulong)))
+                      (var output (global (pointer ,type)))
+                      (var acc (local (pointer ,type))))
+                     (var nwork (const :int)
+                          (get-local-size 0))
+                     (var gid (const :int)
+                          (get-global-id 0))
+                     (var wid (const :int)
+                          (get-local-id 0))
+                     (var start (const :ulong)
+                          (aref startend 0))
+                     (var end (const :ulong)
+                          (aref startend 1))
                      (setf (aref acc wid) 0)
                      (barrier +CLK-LOCAL-MEM-FENCE+)
                      (when (< (+ start gid)
@@ -71,14 +77,14 @@ done using the reducer."
                              (aref input
                                    (+ start gid)))
                        (barrier +CLK-LOCAL-MEM-FENCE+)
-                       (var :int niter
-                            (ceil (log2 (typecast :float nwork))))
-                       (for (var int i 0) (< i niter) (incf i)
-                            (var (const :int) stride
+                       (var niter :int
+                            (ceil (log2 (coerce nwork :float))))
+                       (for (var i :int 0) (< i niter) (incf i)
+                            (var stride (const :int)
                                  (<< 1
                                      (+ i 1)))
                             (when (zerop (mod wid stride))
-                              (var (const :int) next
+                              (var next (const :int)
                                    (+ wid (<< 1 i)))
                               (when (< next nwork)
                                 (setf (aref acc wid)
@@ -146,9 +152,10 @@ done using the reducer."
                 (cl-set-kernel-arg kernel 3
                                    :type type
                                    :count wgsize)
-                (cl-enqueue-ndrange-kernel queue kernel
-                                           (list globalworksize)
-                                           (list wgsize))
+                (push (cl-enqueue-ndrange-kernel queue kernel
+                                                 (list globalworksize)
+                                                 (list wgsize))
+                      events)
                 ;; loop
                 (let* ((niter (ceiling (log ngroups
                                             wgsize)))
@@ -203,20 +210,28 @@ done using the reducer."
                                          (funcall (second ev))
                                          (cl-release-event (first ev)))
                                        (cl-release-event ev)))
+                              (cl-release-mem-object outbuf2)
+                              (cl-release-mem-object outbuf1)
+                              (cl-release-mem-object startendbuf)
                               (elt (funcall returner) 0))))
-                      (list finalevent cleanup))))))))
-      (list reducefn kernel program))))
+                      (list finalevent cleanup)))))))
+           (cleanup
+            (lambda ()
+              (cl-release-kernel kernel)
+              (cl-release-program program))))
+      (list reducefn cleanup)))) 
 
 ;;; Maps
 (defun make-opencl-mapper (queue input-type mexpr
                            &key
+                             (nparams 0)
                              output-type
                              (preamble "")
                              headers
                              options)
-  "Returns a list (function kernel program) where function is of the form
+  "Returns a list (mapper cleanup) where mapper is of the form
 
-(lambda (in-buffer out-buffer &key in-start in-end out-start) ...)
+(lambda (in-buffer out-buffer &key params in-start in-end out-start) ...)
 
 that will perform a map operation according to the input parameters.
 in-buffer and out-buffer must be OpenCL memory objects, and in-start
@@ -225,6 +240,9 @@ be written to out-buffer starting at out-start.  in-start defaults to
 0, in-end defaults to the end of the input buffer, and out-start
 defaults to 0.  The return value of the generated function is an event
 that will need to be waited on and released at some point.
+
+cleanup should be called once the mapper is done being used so that
+OpenCL memory can be cleaned up.
 
 queue must be an OpenCL queue handle.
 
@@ -237,6 +255,10 @@ OpenCL C code for an expression of a unary operation to apply to the
 variable referenced in the string argument.  The expression can refer
 to code defined in the preamble string argument or included in one of
 the headers.
+
+params can be a list of parameters to supply to the mexpr form in
+addition to the primary argument.  They will be handed to OpenCL
+through a buffer.
 
 memobj is the source memory buffer.
 
@@ -265,28 +287,28 @@ done using the reducer."
                    headers)
            preamble
            (program-source-from-forms-fn
-            `(kernel :void map
-                     ((var (global (pointer ,input-type)) input)
-                      (var (global (pointer :ulong)) input_startend)
-                      (var (global (pointer :ulong)) output_start)
-                      (var (global (pointer ,output-type)) output))
-                     (var (const :int) nwork
-                          (get-local-size 0))
-                     (var (const :int) gid
+            `(kernel map
+                     ((var input (global (pointer ,input-type)))
+                      (var input_startend (global (pointer :ulong)))
+                      (var params (global (pointer ,output-type)))
+                      (var output_start (global (pointer :ulong)))
+                      (var output (global (pointer ,output-type))))
+                     (var gid (const :int)
                           (get-global-id 0))
-                     (var (const :int) wid
-                          (get-local-id 0))
-                     (var (const :ulong) start
+                     (var start (const :ulong)
                           (aref input_startend 0))
-                     (var (const :ulong) end
+                     (var end (const :ulong)
                           (aref input_startend 1))
-                     (var (const :ulong) outstart
+                     (var outstart (const :ulong)
                           (aref output_start 0))
                      (when (< (+ start gid)
                               end)
                        (setf (aref output (+ outstart gid))
-                             ,(funcall mexpr
-                                       `(aref input (+ start gid)))))))))
+                             ,(apply mexpr
+                                     `(aref input (+ start gid))
+                                     (loop
+                                        for i below nparams
+                                        collecting `(aref params ,i)))))))))
          (context (cl-get-command-queue-info
                    queue +CL-QUEUE-CONTEXT+))
          (dev (cl-get-command-queue-info
@@ -297,52 +319,102 @@ done using the reducer."
                                :options options)
     (let* ((kernel
             (cl-create-kernel program "map"))
+           (lastparams NIL)
+           (lastin-start 0)
+           (lastin-end NIL)
+           (lastout-start 0)
+           (in-startendbuf
+            (cl-create-buffer context
+                              :flags +CL-MEM-READ-ONLY+
+                              :type :ulong
+                              :count 2))
+           (out-startbuf
+            (cl-create-buffer context
+                              :flags +CL-MEM-READ-ONLY+
+                              :type :ulong
+                              :count 1))
+           (paramsbuf (when (not (zerop nparams))
+                        (cl-create-buffer context
+                                          :flags +CL-MEM-READ-ONLY+
+                                          :type output-type
+                                          :count nparams)))
            (mapfn
-            (lambda (in-buffer out-buffer &key in-start in-end out-start)
-              (let* ((in-start (if in-start
-                                   in-start
-                                   0))
+            (lambda (in-buffer out-buffer &key params in-start in-end out-start)
+              (let* ((params (when (and (not (zerop nparams))
+                                        params
+                                        (not (equal params lastparams)))
+                               (setf lastparams params)
+                               params))
+                     (in-start (when (and in-start
+                                          (not (equal in-start lastin-start)))
+                                 (setf lastin-start in-start)
+                                 in-start))
                      (in-bufsize (cl-get-mem-object-info in-buffer
                                                          +CL-MEM-SIZE+))
-                     (in-end (if in-end
-                                 in-end
-                                 (/ in-bufsize
-                                    (foreign-type-size input-type))))
-                     (out-start (if out-start
-                                    out-start
-                                    0))
+                     (in-end (cond
+                               ((and in-end
+                                     (not (equal in-end lastin-end)))
+                                (setf lastin-end in-end)
+                                in-end)
+                               ((not lastin-end)
+                                (setf lastin-end
+                                      (/ in-bufsize
+                                         (foreign-type-size input-type)))
+                                lastin-end)
+                               (t NIL)))
+                     (out-start (when (and out-start
+                                           (not (equal out-start lastout-start)))
+                                  (setf lastout-start
+                                        out-start)
+                                  out-start))
                      (event NIL)
                      (wgsize
                       (cl-get-kernel-work-group-info
                        kernel
                        dev
                        +CL-KERNEL-WORK-GROUP-SIZE+))
-                     (n (- in-end in-start))
+                     (n (- lastin-end lastin-start))
                      (ngroups
                       (ceiling n
                                wgsize))
                      (globalworksize
-                      (* wgsize ngroups))
-                     (in-startendbuf
-                      (cl-create-buffer context
-                                        :flags +CL-MEM-READ-ONLY+
-                                        :type :ulong
-                                        :data (list in-start in-end)))
-                     (out-startbuf
-                      (cl-create-buffer context
-                                        :flags +CL-MEM-READ-ONLY+
-                                        :type :ulong
-                                        :data (list out-start))))
-                ;; initial execution
+                      (* wgsize ngroups)))
+                (when (or in-start in-end)
+                  (cl-enqueue-write-buffer queue in-startendbuf
+                                           :ulong
+                                           (list lastin-start
+                                                 lastin-end)
+                                           :blocking-p t))
+                (when out-start
+                  (cl-enqueue-write-buffer queue out-startbuf
+                                           :ulong
+                                           (list out-start)
+                                           :blocking-p t))
+                (when params
+                  (cl-enqueue-write-buffer queue paramsbuf
+                                           :output-type
+                                           params
+                                           :blocking-p t))
+                ;; set kernel arguments
                 (cl-set-kernel-arg kernel 0 :value in-buffer)
-                (cl-set-kernel-arg kernel 1 :value in-startendbuf)
-                (cl-set-kernel-arg kernel 2 :value out-startbuf)
-                (cl-set-kernel-arg kernel 3 :value out-buffer)
+                (cl-set-kernel-arg kernel 4 :value out-buffer)
                 (setf event
                       (cl-enqueue-ndrange-kernel queue kernel
                                                  (list globalworksize)
                                                  (list wgsize)))
-                (cl-release-mem-object in-startendbuf)
-                (cl-release-mem-object out-startbuf)
-                event))))
-      (list mapfn kernel program))))
+                
+                event)))
+           (cleanup
+            (lambda ()
+              (cl-release-kernel kernel)
+              (cl-release-program program)
+              (cl-release-mem-object in-startendbuf)
+              (cl-release-mem-object out-startbuf)
+              (when (not (zerop nparams))
+                (cl-release-mem-object paramsbuf)))))
+      ;; set constant arguments
+      (cl-set-kernel-arg kernel 1 :value in-startendbuf)
+      (cl-set-kernel-arg kernel 2 :value paramsbuf)
+      (cl-set-kernel-arg kernel 3 :value out-startbuf)
+      (list mapfn cleanup)
+      )))

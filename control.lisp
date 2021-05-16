@@ -14,7 +14,7 @@
     (format out "{~%")
     (loop
        for binding in bindings
-       do (destructuring-bind (type var &optional init) binding
+       do (destructuring-bind (var type &optional init) binding
             (format out "~a ~a" (clc type) (clc var))
             (when init
               (format out " = ~a" (clc init)))

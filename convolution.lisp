@@ -1,29 +1,30 @@
 (in-package :cl-opencl-utils)
 
 ;;;; Convolute two OpenCL C functions
-(defun make-opencl-convolutor (queue fnA-expr fnB-expr domain
+  
+(defun make-opencl-convolutor (queue expr-A expr-B domain
                                &key
                                  (nparams-A 0)
                                  (nparams-B 0)
                                  (type :float)
                                  (ndomain (expt 10 6)))
   "Returns a list (convolutor cleanup), where convolutor accepts an
-input value and returns the convolution of fnA and fnB at that point,
-and cleanup is a function to call to cleanup foreign and OpenCL memory
-allocations.
+input value and returns the convolution of functions A and B at that
+point, and cleanup is a function to call to cleanup foreign and OpenCL
+memory allocations.
 
-fnA-expr and fnB-expr should be functions that accept a list of
-strings and return an OpenCL C expression for the fnA or fnB function
-value respectively.  The first string will be the primary argument,
-and the rest of the the strings will be parameter values.
+expr-A and expr-B should be functions that accept a list of strings
+and return an OpenCL C expression for the A or B function value
+respectively.  The first string will be the primary argument, and the
+rest of the the strings will be parameter values.
 
 ndomain is the number of samples to take from domain in order to
 perform the numerical integration.
 
-convolutor will be a function (lambda (x &key Aparams Bparams)...)
-with sticky values for Aparams and Bparams so that they only need
+convolutor will be a function (lambda (x &key params-A params-B)...)
+with sticky values for params-A and params-B so that they only need
 supplying when they need to be changed.  The number of parameters are
-set by the nparams-A and nparams-B for fnA and fnB respectively."
+set by the nparams-A and nparams-B for A and B respectively."
   (let* ((context (cl-get-command-queue-info
                    queue
                    +CL-QUEUE-CONTEXT+))
@@ -54,28 +55,28 @@ set by the nparams-A and nparams-B for fnA and fnB respectively."
          ;; Convolution kernel
          (convolution-source
           (program-source-from-forms-fn
-           `(kernel :void convolution
-                    ((var (global (pointer :ulong)) nn)
-                     (var (global (pointer ,type)) lohi)
-                     (var (global (pointer ,type)) xx)
-                     (var (global (pointer ,type)) Aparams)
-                     (var (global (pointer ,type)) B)
-                     (var (global (pointer ,type)) R))
-                    (var (const :ulong) n
+           `(kernel convolution
+                    ((var nn (global (pointer :ulong)))
+                     (var lohi (global (pointer ,type)))
+                     (var xx (global (pointer ,type)))
+                     (var Aparams (global (pointer ,type)))
+                     (var B (global (pointer ,type)))
+                     (var R (global (pointer ,type))))
+                    (var n (const :ulong)
                          (value nn))
-                    (var (const :int) gid (get-global-id 0))
+                    (var gid (const :int) (get-global-id 0))
                     (when (< gid n)
-                      (var (const ,type) lo (aref lohi 0))
-                      (var (const ,type) hi (aref lohi 1))
-                      (var (const ,type) x
+                      (var lo (const ,type) (aref lohi 0))
+                      (var hi (const ,type) (aref lohi 1))
+                      (var x (const ,type)
                            (value xx))
-                      (var (const ,type) step (/ (- hi lo) n))
-                      (var (const ,type) t
+                      (var step (const ,type) (/ (- hi lo) n))
+                      (var t (const ,type)
                            (+ lo
                               (* gid step)
                               (* 0.5 step)))
                       (setf (aref R gid)
-                            (* ,(apply fnA-expr
+                            (* ,(apply expr-A
                                        '(- x t)
                                        (loop
                                           for i below nparams-A
@@ -105,7 +106,7 @@ set by the nparams-A and nparams-B for fnA and fnB respectively."
            ;;                   typename typename typename typename typename ; args
            ;;                   typename typename typename ; lo hi x
            ;;                   typename typename ; step t
-           ;;                   (apply fnA-expr "(x - t)"
+           ;;                   (apply expr-A "(x - t)"
            ;;                          (loop
            ;;                             for i below nparams-A
            ;;                             collecting (format nil "Aparams[~a]" i))))
@@ -123,38 +124,39 @@ set by the nparams-A and nparams-B for fnA and fnB respectively."
           (make-opencl-reducer
            queue type +OPENCL-ADD-REXPR+))
          (reducer (first reducer-results))
-         (reducer-kernel (second reducer-results))
-         (reducer-program (third reducer-results))
+         (reducer-cleanup (second reducer-results))
          (Apars NIL)
-         (Aparambuf (cl-create-buffer context
-                                      :count nparams-A
-                                      :type type))
+         (Aparambuf (when (not (zerop nparams-A))
+                      (cl-create-buffer context
+                                        :count nparams-A
+                                        :type type)))
          (Bpars NIL)
-         (Bparambuf (cl-create-buffer context
-                                      :count nparams-B
-                                      :type type))
+         (Bparambuf (when (not (zerop nparams-B))
+                      (cl-create-buffer context
+                                        :count nparams-B
+                                        :type type)))
          ;; B buffer kernel
          (b-source
           (program-source-from-forms-fn
-           `(kernel :void setb
-                    ((var (global (pointer ,type)) lohi)
-                     (var (global (pointer ,type)) Bparams)
-                     (var (global (pointer :ulong)) nn)
-                     (var (global (pointer ,type)) B))
-                    (var (const :ulong) n
+           `(kernel setb
+                    ((var lohi (global (pointer ,type)))
+                     (var Bparams (global (pointer ,type)))
+                     (var nn (global (pointer :ulong)))
+                     (var B (global (pointer ,type))))
+                    (var n (const :ulong)
                          (value nn))
-                    (var (const :int) gid
+                    (var gid (const :int)
                          (get-global-id 0))
                     (when (< gid n)
-                      (var (const ,type) lo (aref lohi 0))
-                      (var (const ,type) hi (aref lohi 1))
-                      (var (const ,type) step (/ (- hi lo) n))
-                      (var (const ,type) x
+                      (var lo (const ,type) (aref lohi 0))
+                      (var hi (const ,type) (aref lohi 1))
+                      (var step (const ,type) (/ (- hi lo) n))
+                      (var x (const ,type)
                            (+ lo
                               (* gid step)
                               (* 0.5 step)))
                       (setf (aref B gid)
-                            ,(apply fnB-expr
+                            ,(apply expr-B
                                     'x
                                     (loop
                                        for i below nparams-B
@@ -179,7 +181,7 @@ set by the nparams-A and nparams-B for fnA and fnB respectively."
            ;;                   typename typename typename ; arguments
            ;;                   typename typename ; lo hi
            ;;                   typename typename ; step x
-           ;;                   (apply fnB-expr "x"
+           ;;                   (apply expr-B "x"
            ;;                          (loop
            ;;                             for i below nparams-B
            ;;                             collecting (format nil "Bparams[~a]" i))))
@@ -192,23 +194,25 @@ set by the nparams-A and nparams-B for fnA and fnB respectively."
          (b-kernel
           (cl-create-kernel b-program "setb"))
          (convolutor
-          (lambda (x &key Aparams Bparams)
+          (lambda (x &key params-A params-B)
             (let* ((events NIL))
-              (when (and Aparams
-                         (not (equal Aparams Apars)))
-                (setf Apars Aparams)
+              (when (and (not (zerop nparams-A))
+                         params-A
+                         (not (equal params-A Apars)))
+                (setf Apars params-A)
                 (push (cl-enqueue-write-buffer
                        queue Aparambuf
                        type
-                       Aparams)
+                       params-A)
                       events))
-              (when (and Bparams
-                         (not (equal Bparams Bpars)))
-                (setf Bpars Bparams)
+              (when (and (not (zerop nparams-B))
+                         params-B
+                         (not (equal params-B Bpars)))
+                (setf Bpars params-B)
                 (push (cl-enqueue-write-buffer
                        queue Bparambuf
                        type
-                       Bparams)
+                       params-B)
                       events)
                 (push (cl-enqueue-kernel
                        queue b-kernel
@@ -236,14 +240,15 @@ set by the nparams-A and nparams-B for fnA and fnB respectively."
           (lambda ()
             (cl-release-kernel convolution-kernel)
             (cl-release-program convolution-program)
-            (cl-release-kernel reducer-kernel)
-            (cl-release-program reducer-program)
+            (funcall reducer-cleanup)
             (cl-release-kernel b-kernel)
             (cl-release-program b-program)
             (cl-release-mem-object nbuf)
             (cl-release-mem-object lohibuf)
-            (cl-release-mem-object Aparambuf)
-            (cl-release-mem-object Bparambuf)
+            (when (not (zerop nparams-A))
+              (cl-release-mem-object Aparambuf))
+            (when (not (zerop nparams-B))
+              (cl-release-mem-object Bparambuf))
             (cl-release-mem-object xbuf)
             (cl-release-mem-object Bbuf)
             (cl-release-mem-object Rbuf))))

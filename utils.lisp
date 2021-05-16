@@ -41,4 +41,11 @@ DEALINGS IN THE SOFTWARE.
     (:string "char*")
     (t (cffi::foreign-name type-keyword nil))))
 
-
+;;; Expression generator
+(defun opencl-function-expr (fname)
+  "Returns an expression function generating the Lispified OpenCL code
+to call that function when supplied with a list of arguments.  Useful
+for multiple utilities, e.g. make-opencl-reducer, make-opencl-mapper,
+make-opencl-convolutor."
+  (lambda (&rest xs)
+    `(,fname ,@xs)))

@@ -1,0 +1,8 @@
++ Add a midpoint integrator based on make-opencl-function-sampler and
+  make-opencl-reducer.  Data should be generated per-job and then
+  processed with the rest of the reduction algorithm, not broken into
+  separate jobs that use lots of global memory.
+
+- Add adjustable parameter support for:
+
+  - make-opencl-mapper

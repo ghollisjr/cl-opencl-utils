@@ -27,7 +27,7 @@
 
 ;;;; Function definition
 
-(defclc function (type fname arg-list &body body)
+(defclc function (fname type arg-list &body body)
   (with-output-to-string (out)
     (format out "~a ~a(~{~a~^,~}) {~%"
             (clc type)
@@ -39,16 +39,20 @@
     (format out "}~%")))
 
 ;;; Kernels
-(defclc kernel (type fname arg-list &body body)
-  (with-output-to-string (out)
-    (format out "__kernel ~a ~a(~{~a~^,~}) {~%"
-            (clc type)
-            (clc fname)
-            (mapcar #'clc arg-list))
-    (loop
-       for expr in body
-       do (format out "~a;~%" (clc expr)))
-    (format out "}~%")))
+;;;
+;;; Note that OpenCL C kernels always have void return type, so
+;;; there's no need to supply return type.
+(defclc kernel (fname arg-list &body body)
+  (let ((rettype :void))
+    (with-output-to-string (out)
+      (format out "__kernel ~a ~a(~{~a~^,~}) {~%"
+              (clc rettype)
+              (clc fname)
+              (mapcar #'clc arg-list))
+      (loop
+         for expr in body
+         do (format out "~a;~%" (clc expr)))
+      (format out "}~%"))))
 
 ;;;; Struct members
 
@@ -74,11 +78,15 @@
             (clc value))))
 
 ;; type casting
-(defclc typecast (type val)
+(defclc typecast (val type)
   (with-output-to-string (out)
     (format out "((~a) ~a)"
             (clc type)
             (clc val))))
+
+;; Conveniencen alias
+(defclc coerce (val type)
+  (clc `(typecast ,val ,type)))
 
 ;; Array referencing (operator[])
 (defclc aref (array &rest indices)
@@ -111,7 +119,7 @@
 
 ;; Concatenating resulting code strings:
 (defclc concat (&rest forms)
-  (apply #'string-append
+  (apply #'concatenate 'string
          (mapcar #'clc forms)))
 
 ;; OpenCL built-ins

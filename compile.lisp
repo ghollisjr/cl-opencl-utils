@@ -20,7 +20,7 @@ forms"
                   ;; (lambda (fsym)
                   ;;   (destructuring-bind (&key type clc-args body)
                   ;;       (gethash fsym *clc-funs*)
-                  ;;     `(function ,type ,fsym ,clc-args ,@body)))
+                  ;;     `(function ,fsym ,type ,clc-args ,@body)))
                   required-functions))
          (alt-function-forms
           (loop
@@ -60,7 +60,7 @@ top-level forms preceded by any required headers"
           (mapcar (lambda (fsym)
                     (destructuring-bind (&key type clc-args body)
                         (gethash fsym *clc-funs*)
-                      `(function ,type ,fsym ,clc-args ,@body)))
+                      `(function ,fsym ,type ,clc-args ,@body)))
                   required-functions))
          (alt-function-forms
           (loop
@@ -122,7 +122,7 @@ includes."
           (mapcar (lambda (fsym)
                     (destructuring-bind (&key type clc-args body)
                         (gethash fsym *clc-funs*)
-                      `(function ,type ,fsym ,clc-args ,@body)))
+                      `(function ,fsym ,type ,clc-args ,@body)))
                   required-functions))
          (alt-function-forms
           (loop

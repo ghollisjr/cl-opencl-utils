@@ -32,7 +32,7 @@ Make sure that the file contains only the body with enclosing braces
 Can include these in a comment, and this is recommended for good
 style."
   `(let* ((lines (read-lines-from-pathname ,body-path))
-          (src (apply #'string-append
+          (src (apply #'concatenate 'string
                       (intersperse (format nil "~%")
                                    lines))))
      (eval `(defrawclcfun ,',type ,',name ,',clc-args
