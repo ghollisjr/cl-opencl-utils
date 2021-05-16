@@ -85,6 +85,19 @@
    :+2/sqrtpi+
    :+sqrt2+
    :+1/sqrt2+
+   :+e-f+
+   :+log2e-f+
+   :log10e-f+
+   :ln2-f+
+   :+ln10-f+
+   :+pi-f+
+   :+pi/2-f+
+   :+pi/4-f+
+   :+1/pi-f+
+   :+2/pi-f+
+   :+2/sqrtpi-f+
+   :+sqrt2-f+
+   :+1/sqrt2-f+
    ;; raw-functions
    :defrawclcfun
    :deffileclcfun
