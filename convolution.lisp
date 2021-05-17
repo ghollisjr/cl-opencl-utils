@@ -160,32 +160,7 @@ set by the nparams-A and nparams-B for A and B respectively."
                                     'x
                                     (loop
                                        for i below nparams-B
-                                       collecting `(aref Bparams ,i)))))))
-
-           ;; (format nil "__kernel
-           ;; void setb (__global ~a *lohi,
-           ;;            __global ~a *Bparams,
-           ;;            __global long unsigned int* N,
-           ;;            __global ~a *B)
-           ;; {
-           ;;   const long unsigned int n = *N;
-           ;;   const int gid = get_global_id(0);
-           ;;   if(gid < n) {
-           ;;     const ~a lo = lohi[0];
-           ;;     const ~a hi = lohi[1];
-           ;;     const ~a step = (hi - lo)/n;
-           ;;     const ~a x = lo + gid*step + 0.5*step;
-           ;;     B[gid] = ~a;
-           ;;   }
-           ;; }"
-           ;;                   typename typename typename ; arguments
-           ;;                   typename typename ; lo hi
-           ;;                   typename typename ; step x
-           ;;                   (apply expr-B "x"
-           ;;                          (loop
-           ;;                             for i below nparams-B
-           ;;                             collecting (format nil "Bparams[~a]" i))))
-           )
+                                       collecting `(aref Bparams ,i))))))))
          (b-program
           (let* ((program
                    (cl-create-program-with-source context b-source)))
@@ -225,17 +200,9 @@ set by the nparams-A and nparams-B for A and B respectively."
                      queue convolution-kernel
                      ndomain)
                     events)
-              ;; debug
-              ;; (cl-wait-and-release-events events)
-              ;; (cl-enqueue-read-buffer queue Bbuf :float ndomain
-              ;;                                   :blocking-p t)
-              ;; end debug
-
               (push (funcall reducer Rbuf)
                     events)
-
-              (first (cl-wait-and-release-events events))
-              )))
+              (first (cl-wait-and-release-events events)))))
          (cleanup
           (lambda ()
             (cl-release-kernel convolution-kernel)
