@@ -13,10 +13,15 @@
    :make-opencl-mapper
    ;; convolution
    :make-opencl-convolutor
-   ;; Sampling functions
+   ;; sampling functions
    :make-opencl-function-sampler
-   ;; Midpoint rule integration
+   ;; integration
    :make-opencl-integrator
+   ;; splines
+   :eval_cubic_spline
+   :eval_cubic_spline_f
+   :serialize-spline-coef-array
+   :make-opencl-spline-form
    ;;; OpenCL Lispified C DSL
    ;; clc
    :clc
@@ -36,6 +41,8 @@
    :pmember
    :typecast
    :concat
+   :statement
+   :statements
    :kernel
    :+CLK-LOCAL-MEM-FENCE+
    :+CLK-GLOBAL-MEM-FENCE+

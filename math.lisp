@@ -81,7 +81,7 @@
                      when (second fcons)
                      do (let ((left (first fcons))
                               (right (second fcons)))
-                          (format out "~a ~a ~a"
+                          (format out "((~a) ~a (~a))"
                                   (clc left)
                                   ,(if str
                                        str

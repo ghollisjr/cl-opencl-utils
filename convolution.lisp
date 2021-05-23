@@ -1,13 +1,16 @@
 (in-package :cl-opencl-utils)
 
 ;;;; Convolute two OpenCL C functions
-  
+
 (defun make-opencl-convolutor (queue expr-A expr-B domain
                                &key
                                  (nparams-A 0)
                                  (nparams-B 0)
                                  (type :float)
-                                 (ndomain (expt 10 6)))
+                                 (ndomain (expt 10 6))
+                                 (preamble "")
+                                 headers
+                                 options)
   "Returns a list (convolutor cleanup), where convolutor accepts an
 input value and returns the convolution of functions A and B at that
 point, and cleanup is a function to call to cleanup foreign and OpenCL
@@ -54,68 +57,47 @@ set by the nparams-A and nparams-B for A and B respectively."
                                  :count ndomain))
          ;; Convolution kernel
          (convolution-source
-          (program-source-from-forms-fn
-           `(kernel convolution
-                    ((var nn (global (pointer :ulong)))
-                     (var lohi (global (pointer ,type)))
-                     (var xx (global (pointer ,type)))
-                     (var Aparams (global (pointer ,type)))
-                     (var B (global (pointer ,type)))
-                     (var R (global (pointer ,type))))
-                    (var n (const :ulong)
-                         (value nn))
-                    (var gid (const :int) (get-global-id 0))
-                    (when (< gid n)
-                      (var lo (const ,type) (aref lohi 0))
-                      (var hi (const ,type) (aref lohi 1))
-                      (var x (const ,type)
-                           (value xx))
-                      (var step (const ,type) (/ (- hi lo) n))
-                      (var t (const ,type)
-                           (+ lo
-                              (* gid step)
-                              (* 0.5 step)))
-                      (setf (aref R gid)
-                            (* ,(apply expr-A
-                                       '(- x t)
-                                       (loop
-                                          for i below nparams-A
-                                          collecting `(aref Aparams ,i)))
-                               (aref B gid)
-                               step)))))
-           ;; (format nil
-           ;;                   "__kernel
-           ;; void convolution(__global long unsigned int* N,
-           ;;                  __global ~a *lohi,
-           ;;                  __global ~a *X,
-           ;;                  __global ~a *Aparams,
-           ;;                  __global ~a *B,
-           ;;                  __global ~a *R)
-           ;; {
-           ;;   const long unsigned int n = *N;
-           ;;   const int gid = get_global_id(0);
-           ;;   if(gid < n) {
-           ;;     const ~a lo = lohi[0];
-           ;;     const ~a hi = lohi[1];
-           ;;     const ~a x = *X;
-           ;;     const ~a step = (hi - lo)/n;
-           ;;     const ~a t = lo + gid*step + 0.5*step;
-           ;;     R[gid] = (~a) * B[gid] * step;
-           ;;   }
-           ;; }"
-           ;;                   typename typename typename typename typename ; args
-           ;;                   typename typename typename ; lo hi x
-           ;;                   typename typename ; step t
-           ;;                   (apply expr-A "(x - t)"
-           ;;                          (loop
-           ;;                             for i below nparams-A
-           ;;                             collecting (format nil "Aparams[~a]" i))))
-           )
+          (concatenate
+           'string
+           (format nil "~{#include \"~a\"~^~%~}"
+                   headers)
+           (program-source-from-forms-fn
+            `(concat
+              ,preamble
+              (kernel convolution
+                      ((var nn (global (pointer :ulong)))
+                       (var lohi (global (pointer ,type)))
+                       (var xx (global (pointer ,type)))
+                       (var Aparams (global (pointer ,type)))
+                       (var B (global (pointer ,type)))
+                       (var R (global (pointer ,type))))
+                      (var n (const :ulong)
+                           (value nn))
+                      (var gid (const :int) (get-global-id 0))
+                      (when (< gid n)
+                        (var lo (const ,type) (aref lohi 0))
+                        (var hi (const ,type) (aref lohi 1))
+                        (var x (const ,type)
+                             (value xx))
+                        (var step (const ,type) (/ (- hi lo) n))
+                        (var t (const ,type)
+                             (+ lo
+                                (* gid step)
+                                (* 0.5 step)))
+                        (setf (aref R gid)
+                              (* ,(apply expr-A
+                                         '(- x t)
+                                         (loop
+                                            for i below nparams-A
+                                            collecting `(aref Aparams ,i)))
+                                 (aref B gid)
+                                 step))))))))
          (convolution-program
           (let* ((program
-                   (cl-create-program-with-source
-                    context convolution-source)))
-            (cl-build-program-with-log program (list dev))
+                  (cl-create-program-with-source
+                   context convolution-source)))
+            (cl-build-program-with-log program (list dev)
+                                       :options options)
             program))
          (convolution-kernel (cl-create-kernel
                               convolution-program "convolution"))
@@ -163,7 +145,7 @@ set by the nparams-A and nparams-B for A and B respectively."
                                        collecting `(aref Bparams ,i))))))))
          (b-program
           (let* ((program
-                   (cl-create-program-with-source context b-source)))
+                  (cl-create-program-with-source context b-source)))
             (cl-build-program-with-log program (list dev))
             program))
          (b-kernel

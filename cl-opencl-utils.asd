@@ -27,4 +27,6 @@
      (:file "function-sampling")
      ;; Integration
      (:file "integration")
+     ;; Splines
+     (:file "spline")
      ))

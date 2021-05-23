@@ -5,7 +5,10 @@
                                &key
                                  (mode :simpson)
                                  (nparams 0)
-                                 (type :float))
+                                 (type :float)
+                                 (preamble "")
+                                 headers
+                                 options)
   "Returns a list (integrator cleanup), where integrator is of the form
 
 (lambda (xlow xhigh &key params (ndomain (expt 10 3))...)
@@ -45,87 +48,94 @@ to use the corresponding sampling method."
          (samplebuf NIL)
          ;; Sampling kernel
          (sampler-source
-          (program-source-from-forms-fn
-           `(kernel sampler
-                    ((var nsamples (global (pointer :ulong)))
-                     (var lowhigh (global (pointer ,type)))
-                     (var params (global (pointer ,type)))
-                     (var output (global (pointer ,type))))
-                    (var n (const :ulong) (aref nsamples 0))
-                    (var gid (const :int)
-                         (get-global-id 0))
-                    (when (< gid
-                             n)
-                      (var low (const ,type)
-                           (aref lowhigh 0))
-                      (var high (const ,type)
-                           (aref lowhigh 1))
+          (concatenate
+           'string
+           (format nil "~{#include \"~a\"~^~%~}"
+                   headers)
+           (program-source-from-forms-fn
+            `(concat
+              ,preamble
+              (kernel sampler
+                      ((var nsamples (global (pointer :ulong)))
+                       (var lowhigh (global (pointer ,type)))
+                       (var params (global (pointer ,type)))
+                       (var output (global (pointer ,type))))
+                      (var n (const :ulong) (aref nsamples 0))
+                      (var gid (const :int)
+                           (get-global-id 0))
+                      (when (< gid
+                               n)
+                        (var low (const ,type)
+                             (aref lowhigh 0))
+                        (var high (const ,type)
+                             (aref lowhigh 1))
 
-                      (var step (const ,type)
-                           (/ (- high low)
-                              (coerce n
-                                      ,type)))
-                      (var x (const ,type)
-                           (+ low
-                              (* 0.5 step)
-                              (* step gid)))
-                      (setf (aref output
-                                  gid)
-                            (* step
-                               ,(cond
-                                  ((eq mode :simpson)
-                                   `(+ (* (/ 2d0 3d0)
-                                          ,(apply expr
-                                                  'x
-                                                  (loop
-                                                     for i below nparams
-                                                     collecting `(aref params ,i))))
-                                       (* (/ 1d0 6d0)
-                                          (+ ,(apply expr
-                                                     '(- x (* 0.5 step))
-                                                     (loop
-                                                        for i below nparams
-                                                        collecting `(aref params ,i)))
-                                             ,(apply expr
-                                                     '(+ x (* 0.5 step))
-                                                     (loop
-                                                        for i below nparams
-                                                        collecting `(aref params ,i)))))))
-                                  ((eq mode :midpoint)
-                                   (apply expr
-                                          'x
-                                          (loop
-                                             for i below nparams
-                                             collecting `(aref params ,i))))
-                                  ((eq mode :trapezoid)
-                                   `(* 0.5
-                                       (+ ,(apply expr
-                                                  '(- x (* 0.5 step))
-                                                  (loop
-                                                     for i below nparams
-                                                     collecting `(aref params ,i)))
-                                          ,(apply expr
-                                                  '(+ x (* 0.5 step))
-                                                  (loop
-                                                     for i below nparams
-                                                     collecting `(aref params ,i))))))
-                                  ((eq mode :left)
-                                   (apply expr
-                                          '(- x (* 0.5 step))
-                                          (loop
-                                             for i below nparams
-                                             collecting `(aref params ,i))))
-                                  ((eq mode :right)
-                                   (apply expr
-                                          '(+ x (* 0.5 step))
-                                          (loop
-                                             for i below nparams
-                                             collecting `(aref params ,i)))))))))))
+                        (var step (const ,type)
+                             (/ (- high low)
+                                (coerce n
+                                        ,type)))
+                        (var x (const ,type)
+                             (+ low
+                                (* 0.5 step)
+                                (* step gid)))
+                        (setf (aref output
+                                    gid)
+                              (* step
+                                 ,(cond
+                                    ((eq mode :simpson)
+                                     `(+ (* (/ 2d0 3d0)
+                                            ,(apply expr
+                                                    'x
+                                                    (loop
+                                                       for i below nparams
+                                                       collecting `(aref params ,i))))
+                                         (* (/ 1d0 6d0)
+                                            (+ ,(apply expr
+                                                       '(- x (* 0.5 step))
+                                                       (loop
+                                                          for i below nparams
+                                                          collecting `(aref params ,i)))
+                                               ,(apply expr
+                                                       '(+ x (* 0.5 step))
+                                                       (loop
+                                                          for i below nparams
+                                                          collecting `(aref params ,i)))))))
+                                    ((eq mode :midpoint)
+                                     (apply expr
+                                            'x
+                                            (loop
+                                               for i below nparams
+                                               collecting `(aref params ,i))))
+                                    ((eq mode :trapezoid)
+                                     `(* 0.5
+                                         (+ ,(apply expr
+                                                    '(- x (* 0.5 step))
+                                                    (loop
+                                                       for i below nparams
+                                                       collecting `(aref params ,i)))
+                                            ,(apply expr
+                                                    '(+ x (* 0.5 step))
+                                                    (loop
+                                                       for i below nparams
+                                                       collecting `(aref params ,i))))))
+                                    ((eq mode :left)
+                                     (apply expr
+                                            '(- x (* 0.5 step))
+                                            (loop
+                                               for i below nparams
+                                               collecting `(aref params ,i))))
+                                    ((eq mode :right)
+                                     (apply expr
+                                            '(+ x (* 0.5 step))
+                                            (loop
+                                               for i below nparams
+                                               collecting `(aref params ,i)))))))))))))
          (sampler-program
           (let* ((program
                   (cl-create-program-with-source
                    context sampler-source)))
-            (cl-build-program-with-log program (list dev))
+            (cl-build-program-with-log program (list dev)
+                                       :options options)
             program))
          (sampler-kernel (cl-create-kernel
                           sampler-program "sampler"))

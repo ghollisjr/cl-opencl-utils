@@ -52,56 +52,57 @@ done using the reducer."
            'string
            (format nil "~{#include \"~a\"~^~%~}"
                    headers)
-           preamble
            (program-source-from-forms-fn
-            `(kernel reduce
-                     ((var input (global (pointer ,type)))
-                      (var startend (global (pointer :ulong)))
-                      (var output (global (pointer ,type)))
-                      (var acc (local (pointer ,type))))
-                     (var nwork (const :int)
-                          (get-local-size 0))
-                     (var gid (const :int)
-                          (get-global-id 0))
-                     (var wid (const :int)
-                          (get-local-id 0))
-                     (var start (const :ulong)
-                          (aref startend 0))
-                     (var end (const :ulong)
-                          (aref startend 1))
-                     (setf (aref acc wid) 0)
-                     (barrier +CLK-LOCAL-MEM-FENCE+)
-                     (when (< (+ start gid)
-                              end)
-                       (setf (aref acc wid)
-                             (aref input
-                                   (+ start gid)))
-                       (barrier +CLK-LOCAL-MEM-FENCE+)
-                       (var niter :ulong
-                            (ceil (log2 (coerce nwork :float))))
-                       (for (var i :ulong 0) (< i niter) (incf i)
-                            (var stride (const :int)
-                                 (<< 1
-                                     (+ i 1)))
-                            (when (zerop (mod wid stride))
-                              (var next (const :ulong)
-                                   (+ wid (<< 1 i)))
-                              (when (< next nwork)
-                                (setf (aref acc wid)
-                                      ,(funcall rexpr
-                                                `(aref acc wid)
-                                                `(aref acc next)))))
-                            (barrier +CLK-LOCAL-MEM-FENCE+))
-                       (when (zerop wid)
-                         (setf (aref output
-                                     (get-group-id 0))
-                               (aref acc 0))))))))
+            `(concat
+              ,preamble
+              (kernel reduce
+                      ((var input (global (pointer ,type)))
+                       (var startend (global (pointer :ulong)))
+                       (var output (global (pointer ,type)))
+                       (var acc (local (pointer ,type))))
+                      (var nwork (const :int)
+                           (get-local-size 0))
+                      (var gid (const :int)
+                           (get-global-id 0))
+                      (var wid (const :int)
+                           (get-local-id 0))
+                      (var start (const :ulong)
+                           (aref startend 0))
+                      (var end (const :ulong)
+                           (aref startend 1))
+                      (setf (aref acc wid) 0)
+                      (barrier +CLK-LOCAL-MEM-FENCE+)
+                      (when (< (+ start gid)
+                               end)
+                        (setf (aref acc wid)
+                              (aref input
+                                    (+ start gid)))
+                        (barrier +CLK-LOCAL-MEM-FENCE+)
+                        (var niter :ulong
+                             (ceil (log2 (coerce nwork :float))))
+                        (for (var i :ulong 0) (< i niter) (incf i)
+                             (var stride (const :int)
+                                  (<< 1
+                                      (+ i 1)))
+                             (when (zerop (mod wid stride))
+                               (var next (const :ulong)
+                                    (+ wid (<< 1 i)))
+                               (when (< next nwork)
+                                 (setf (aref acc wid)
+                                       ,(funcall rexpr
+                                                 `(aref acc wid)
+                                                 `(aref acc next)))))
+                             (barrier +CLK-LOCAL-MEM-FENCE+))
+                        (when (zerop wid)
+                          (setf (aref output
+                                      (get-group-id 0))
+                                (aref acc 0)))))))))
          (context (cl-get-command-queue-info
                    queue +CL-QUEUE-CONTEXT+))
          (dev (cl-get-command-queue-info
                queue +CL-QUEUE-DEVICE+))
          (program
-           (cl-create-program-with-source context kernel-source)))
+          (cl-create-program-with-source context kernel-source)))
     (cl-build-program-with-log program (list dev)
                                :options options)
     (let* ((kernel
@@ -219,7 +220,7 @@ done using the reducer."
             (lambda ()
               (cl-release-kernel kernel)
               (cl-release-program program))))
-      (list reducefn cleanup)))) 
+      (list reducefn cleanup))))
 
 ;;; Maps
 (defun make-opencl-mapper (queue input-type mexpr
@@ -285,36 +286,37 @@ done using the reducer."
            'string
            (format nil "~{#include \"~a\"~^~%~}"
                    headers)
-           preamble
            (program-source-from-forms-fn
-            `(kernel map
-                     ((var input (global (pointer ,input-type)))
-                      (var input_startend (global (pointer :ulong)))
-                      (var params (global (pointer ,output-type)))
-                      (var output_start (global (pointer :ulong)))
-                      (var output (global (pointer ,output-type))))
-                     (var gid (const :int)
-                          (get-global-id 0))
-                     (var start (const :ulong)
-                          (aref input_startend 0))
-                     (var end (const :ulong)
-                          (aref input_startend 1))
-                     (var outstart (const :ulong)
-                          (aref output_start 0))
-                     (when (< (+ start gid)
-                              end)
-                       (setf (aref output (+ outstart gid))
-                             ,(apply mexpr
-                                     `(aref input (+ start gid))
-                                     (loop
-                                        for i below nparams
-                                        collecting `(aref params ,i)))))))))
+            `(concat
+              ,preamble
+              (kernel map
+                      ((var input (global (pointer ,input-type)))
+                       (var input_startend (global (pointer :ulong)))
+                       (var params (global (pointer ,output-type)))
+                       (var output_start (global (pointer :ulong)))
+                       (var output (global (pointer ,output-type))))
+                      (var gid (const :int)
+                           (get-global-id 0))
+                      (var start (const :ulong)
+                           (aref input_startend 0))
+                      (var end (const :ulong)
+                           (aref input_startend 1))
+                      (var outstart (const :ulong)
+                           (aref output_start 0))
+                      (when (< (+ start gid)
+                               end)
+                        (setf (aref output (+ outstart gid))
+                              ,(apply mexpr
+                                      `(aref input (+ start gid))
+                                      (loop
+                                         for i below nparams
+                                         collecting `(aref params ,i))))))))))
          (context (cl-get-command-queue-info
                    queue +CL-QUEUE-CONTEXT+))
          (dev (cl-get-command-queue-info
                queue +CL-QUEUE-DEVICE+))
          (program
-           (cl-create-program-with-source context kernel-source)))
+          (cl-create-program-with-source context kernel-source)))
     (cl-build-program-with-log program (list dev)
                                :options options)
     (let* ((kernel
@@ -402,7 +404,7 @@ done using the reducer."
                       (cl-enqueue-ndrange-kernel queue kernel
                                                  (list globalworksize)
                                                  (list wgsize)))
-                
+
                 event)))
            (cleanup
             (lambda ()

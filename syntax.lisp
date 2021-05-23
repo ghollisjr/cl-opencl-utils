@@ -122,6 +122,19 @@
   (apply #'concatenate 'string
          (mapcar #'clc forms)))
 
+;; Create a statement from some other form (statements end with
+;; semicolons).
+(defclc statement (form)
+  (format nil "~a;"
+          (clc form)))
+
+;; Concatenating a list of statements generated from forms.
+(defclc statements (&rest forms)
+  (clc `(concat ,@(map 'list
+                       (lambda (f)
+                         `(statement ,f))
+                       forms))))
+
 ;; OpenCL built-ins
 (defclc get-work-dim (&rest indices)
   (clc `(get_work_dim ,@indices)))

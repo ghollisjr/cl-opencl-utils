@@ -36,9 +36,9 @@ expressions from already-defined OpenCL C functions.
 
 memobj is the source memory buffer.
 
-preamble can be a string of OpenCL C code to be placed below headers
-but above the reduction kernel.  Useful for defining utility functions
-to call in the expression.
+preamble can be Lispified OpenCL C code or a string of OpenCL C code
+to be placed below headers but above the reduction kernel.  Useful for
+defining utility functions to call in the expression.
 
 headers can be a list of device header file names to include in the
 kernel OpenCL C code.
@@ -58,44 +58,46 @@ done using the reducer."
            'string
            (format nil "~{#include \"~a\"~^~%~}"
                    headers)
-           preamble
-           (program-source-from-forms-fn
-            `(kernel sampler
-                     ((var output_start (global (pointer :ulong)))
-                      (var lowhigh (global (pointer ,output-type)))
-                      (var nsamples (global (pointer :ulong)))
-                      (var params (global (pointer ,output-type)))
-                      (var output (global (pointer ,output-type))))
-                     (var n (const :ulong) (aref nsamples 0))
-                     (var gid (const :int)
-                          (get-global-id 0))
-                     (when (< gid
-                              n)
-                       (var outstart (const :ulong)
-                            (aref output_start 0))
-                       (var low (const ,output-type)
-                            (aref lowhigh 0))
-                       (var high (const ,output-type)
-                            (aref lowhigh 1))
-                       
-                       (var step (const ,output-type)
-                            (/ (- high low)
-                               (coerce (- n 1)
-                                       ,output-type)))
-                       (var x (const ,output-type)
-                            (+ low (* step gid)))
-                       (setf (aref output
-                                   ;; 0
-                                   (+ outstart gid)
-                                   )
-                             ;; 1d0
-                             ,(apply expr
-                                       'x
-                                       (loop
-                                          for i below nparams
-                                          collecting `(aref params ,i)))
 
-                             ))))))
+           (program-source-from-forms-fn
+            `(concat
+              ,preamble
+              (kernel sampler
+                      ((var output_start (global (pointer :ulong)))
+                       (var lowhigh (global (pointer ,output-type)))
+                       (var nsamples (global (pointer :ulong)))
+                       (var params (global (pointer ,output-type)))
+                       (var output (global (pointer ,output-type))))
+                      (var n (const :ulong) (aref nsamples 0))
+                      (var gid (const :int)
+                           (get-global-id 0))
+                      (when (< gid
+                               n)
+                        (var outstart (const :ulong)
+                             (aref output_start 0))
+                        (var low (const ,output-type)
+                             (aref lowhigh 0))
+                        (var high (const ,output-type)
+                             (aref lowhigh 1))
+
+                        (var step (const ,output-type)
+                             (/ (- high low)
+                                (coerce (- n 1)
+                                        ,output-type)))
+                        (var x (const ,output-type)
+                             (+ low (* step gid)))
+                        (setf (aref output
+                                    ;; 0
+                                    (+ outstart gid)
+                                    )
+                              ;; 1d0
+                              ,(apply expr
+                                      'x
+                                      (loop
+                                         for i below nparams
+                                         collecting `(aref params ,i)))
+
+                              )))))))
          (context (cl-get-command-queue-info
                    queue +CL-QUEUE-CONTEXT+))
          (dev (cl-get-command-queue-info
@@ -123,8 +125,12 @@ done using the reducer."
                                :options options)
     (let* ((kernel
             (cl-create-kernel program "sampler"))
-           (lastlow 0d0)
-           (lasthigh 1d0)
+           (lastlow (if (eq output-type :double)
+                        0d0
+                        0f0))
+           (lasthigh (if (eq output-type :double)
+                         1d0
+                         1f0))
            (lastnsamples 100)
            (lastout-start 0)
            (lastparams NIL)
@@ -151,38 +157,38 @@ done using the reducer."
                                           (not (equal nsamples lastnsamples)))
                                  (setf lastnsamples nsamples)
                                  nsamples))
-                     
+
                      (event NIL))
-              (destructuring-bind (globalworksize wgsize)
-                  (get-opencl-kernel-work-size kernel dev lastnsamples)
-                ;; Setup potentially new out-buffer argument
-                (cl-set-kernel-arg kernel 4 :value out-buffer)
-                ;; Optional update before sampling
-                (when (or low high)
-                  (cl-enqueue-write-buffer queue lowhighbuf
-                                           output-type
-                                           (list lastlow lasthigh)
-                                           :blocking-p t))
-                (when nsamples
-                  (cl-enqueue-write-buffer queue nsamplesbuf
-                                           :ulong
-                                           (list lastnsamples)
-                                           :blocking-p t))
-                (when out-start
-                  (cl-enqueue-write-buffer queue outstartbuf
-                                           :ulong
-                                           (list lastout-start)
-                                           :blocking-p t))
-                (when params
-                  (cl-enqueue-write-buffer queue paramsbuf
-                                           output-type
-                                           lastparams
-                                           :blocking-p t))
-                (setf event
-                      (cl-enqueue-ndrange-kernel queue kernel
-                                                 (list globalworksize)
-                                                 (list wgsize)))
-                event))))
+                (destructuring-bind (globalworksize wgsize)
+                    (get-opencl-kernel-work-size kernel dev lastnsamples)
+                  ;; Setup potentially new out-buffer argument
+                  (cl-set-kernel-arg kernel 4 :value out-buffer)
+                  ;; Optional update before sampling
+                  (when (or low high)
+                    (cl-enqueue-write-buffer queue lowhighbuf
+                                             output-type
+                                             (list lastlow lasthigh)
+                                             :blocking-p t))
+                  (when nsamples
+                    (cl-enqueue-write-buffer queue nsamplesbuf
+                                             :ulong
+                                             (list lastnsamples)
+                                             :blocking-p t))
+                  (when out-start
+                    (cl-enqueue-write-buffer queue outstartbuf
+                                             :ulong
+                                             (list lastout-start)
+                                             :blocking-p t))
+                  (when params
+                    (cl-enqueue-write-buffer queue paramsbuf
+                                             output-type
+                                             lastparams
+                                             :blocking-p t))
+                  (setf event
+                        (cl-enqueue-ndrange-kernel queue kernel
+                                                   (list globalworksize)
+                                                   (list wgsize)))
+                  event))))
            (cleanup (lambda ()
                       (cl-release-mem-object lowhighbuf)
                       (cl-release-mem-object nsamplesbuf)
