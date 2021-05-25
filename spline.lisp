@@ -17,7 +17,7 @@
                  x
                  (aref xs (1+ i)))
          (var delta (const :double) (- (aref xs (1+ i))
-                                      (aref xs i)))
+                                       (aref xs i)))
          (var xx :double
               (/ (- x (aref xs i))
                  delta))
@@ -31,7 +31,6 @@
               (setf tmp (* tmp xx)))
          (return result)))
   (return 0d0))
-
 
 ;; Same for single-float
 (defclcfun eval_cubic_spline_f :float

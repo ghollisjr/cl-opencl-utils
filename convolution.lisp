@@ -85,20 +85,20 @@ set by the nparams-A and nparams-B for A and B respectively."
                                 (* gid step)
                                 (* 0.5 step)))
                         (setf (aref R gid)
-                              (* ,(apply expr-A
+                              (* step
+                                 ,(apply expr-A
                                          '(- x t)
                                          (loop
                                             for i below nparams-A
                                             collecting `(aref Aparams ,i)))
-                                 (aref B gid)
-                                 step))))))))
+                                 (aref B gid)))))))))
          (convolution-program
-          (let* ((program
+          (let* ((p
                   (cl-create-program-with-source
                    context convolution-source)))
-            (cl-build-program-with-log program (list dev)
+            (cl-build-program-with-log p (list dev)
                                        :options options)
-            program))
+            p))
          (convolution-kernel (cl-create-kernel
                               convolution-program "convolution"))
          ;; Sum kernel
@@ -119,58 +119,79 @@ set by the nparams-A and nparams-B for A and B respectively."
                                         :type type)))
          ;; B buffer kernel
          (b-source
-          (program-source-from-forms-fn
-           `(kernel setb
-                    ((var lohi (global (pointer ,type)))
-                     (var Bparams (global (pointer ,type)))
-                     (var nn (global (pointer :ulong)))
-                     (var B (global (pointer ,type))))
-                    (var n (const :ulong)
-                         (value nn))
-                    (var gid (const :int)
-                         (get-global-id 0))
-                    (when (< gid n)
-                      (var lo (const ,type) (aref lohi 0))
-                      (var hi (const ,type) (aref lohi 1))
-                      (var step (const ,type) (/ (- hi lo) n))
-                      (var x (const ,type)
-                           (+ lo
-                              (* gid step)
-                              (* 0.5 step)))
-                      (setf (aref B gid)
-                            ,(apply expr-B
-                                    'x
-                                    (loop
-                                       for i below nparams-B
-                                       collecting `(aref Bparams ,i))))))))
+          (concatenate
+           'string
+           (format nil "~{#include \"~a\"~^~%~}"
+                   headers)
+           (program-source-from-forms-fn
+            `(concat
+              ,preamble
+              (kernel setb
+                      ((var lohi (global (pointer ,type)))
+                       (var Bparams (global (pointer ,type)))
+                       (var nn (global (pointer :ulong)))
+                       (var B (global (pointer ,type))))
+                      (var n (const :ulong)
+                           (value nn))
+                      (var gid (const :int)
+                           (get-global-id 0))
+                      (when (< gid n)
+                        (var lo (const ,type) (aref lohi 0))
+                        (var hi (const ,type) (aref lohi 1))
+                        (var step (const ,type) (/ (- hi lo) n))
+                        (var x (const ,type)
+                             (+ lo
+                                (* gid step)
+                                (* 0.5 step)))
+                        (setf (aref B gid)
+                              ,(apply expr-B
+                                      'x
+                                      (loop
+                                         for i below nparams-B
+                                         collecting `(aref Bparams ,i))))))))))
          (b-program
-          (let* ((program
+          (let* ((p
                   (cl-create-program-with-source context b-source)))
-            (cl-build-program-with-log program (list dev))
-            program))
+            (cl-build-program-with-log p (list dev))
+            p))
          (b-kernel
           (cl-create-kernel b-program "setb"))
          (convolutor
           (lambda (x &key params-A params-B)
             (let* ((events NIL))
-              (when (and (not (zerop nparams-A))
-                         params-A
-                         (not (equal params-A Apars)))
-                (setf Apars params-A)
+              (when (or
+                     ;; non-zero nparams mode
+                     (and (not (zerop nparams-A))
+                          params-A
+                          (not (equal params-A Apars)))
+                     ;; zero-nparams mode
+                     (and (zerop nparams-A)
+                          (null Apars)))
+                (setf Apars (if (not (zerop nparams-A))
+                                params-A
+                                T))
                 (push (cl-enqueue-write-buffer
                        queue Aparambuf
                        type
                        params-A)
                       events))
-              (when (and (not (zerop nparams-B))
-                         params-B
-                         (not (equal params-B Bpars)))
-                (setf Bpars params-B)
-                (push (cl-enqueue-write-buffer
-                       queue Bparambuf
-                       type
-                       params-B)
-                      events)
+              (when (or
+                     ;; non-zero nparams mode
+                     (and (not (zerop nparams-B))
+                          params-B
+                          (not (equal params-B Bpars)))
+                     ;; zero-nparams mode
+                     (and (zerop nparams-B)
+                          (null Bpars)))
+                (setf Bpars (if (not (zerop nparams-B))
+                                params-B
+                                T))
+                (when (not (zerop nparams-B))
+                  (push (cl-enqueue-write-buffer
+                         queue Bparambuf
+                         type
+                         params-B)
+                        events))
                 (push (cl-enqueue-kernel
                        queue b-kernel
                        ndomain)
