@@ -22,6 +22,8 @@
    :eval_cubic_spline_f
    :serialize-spline-coef-array
    :make-opencl-spline-form
+   ;; cleanup
+   :with-opencl-cleanup
    ;;; OpenCL Lispified C DSL
    ;; clc
    :clc

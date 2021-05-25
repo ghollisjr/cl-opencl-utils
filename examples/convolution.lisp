@@ -32,71 +32,73 @@
          (dev (first (cl-get-device-ids
                       plat
                       +CL-DEVICE-TYPE-ALL+)))
-         (context (cl-create-context plat (list dev)))
-         (queue (cl-create-command-queue context dev))
          (gauss-expr
           (opencl-function-expr 'gaussian)))
-    (destructuring-bind (convolutor cleanup)
-        (make-opencl-convolutor queue
-                                gauss-expr
-                                gauss-expr
-                                (cons -3d0 3d0)
-                                :nparams-A 3
-                                :nparams-B 3
-                                :type :double
-                                :ndomain ndomain)
-      (draw
-       (page (list
-              (plot2d (list
-                       (line (lambda (x)
-                               (funcall convolutor
-                                        x
-                                        :params-A (list 1d0 0d0 1d0)
-                                        :params-B (list 1d0 0d0 1d0)))
-                             :sampling (list :low -3d0
-                                             :high 3d0
-                                             :nsamples 1000)
-                             :title "OpenCL-Convoluted Gaussians")
-                       (line (alexandria:curry
-                              #'gaussian
-                              (list 1d0 0d0 (sqrt 2d0)))
-                             :sampling (list :low -3d0
-                                             :high 3d0
-                                             :nsamples 1000)
-                             :title "Mathematically-Convoluted Gaussians"))))))
-      (funcall cleanup)
-      (cl-release-command-queue queue)
-      (cl-release-context context))))
+    (with-opencl-context
+        (context plat (list dev))
+      (with-opencl-command-queue
+          (queue context dev)
+        (with-opencl-cleanup
+            (convolutor
+             (make-opencl-convolutor queue
+                                     gauss-expr
+                                     gauss-expr
+                                     (cons -3d0 3d0)
+                                     :nparams-A 3
+                                     :nparams-B 3
+                                     :type :double
+                                     :ndomain ndomain))
+          (draw
+           (page (list
+                  (plot2d (list
+                           (line (lambda (x)
+                                   (funcall convolutor
+                                            x
+                                            :params-A (list 1d0 0d0 1d0)
+                                            :params-B (list 1d0 0d0 1d0)))
+                                 :sampling (list :low -3d0
+                                                 :high 3d0
+                                                 :nsamples 1000)
+                                 :title "OpenCL-Convoluted Gaussians")
+                           (line (alexandria:curry
+                                  #'gaussian
+                                  (list 1d0 0d0 (sqrt 2d0)))
+                                 :sampling (list :low -3d0
+                                                 :high 3d0
+                                                 :nsamples 1000)
+                                 :title "Mathematically-Convoluted Gaussians")))))))))))
 
 (defun convolution-example-1-no-draw (&optional (ndomain 1000))
   (let* ((plat (first (cl-get-platform-ids)))
          (dev (first (cl-get-device-ids
                       plat
                       +CL-DEVICE-TYPE-ALL+)))
-         (context (cl-create-context plat (list dev)))
-         (queue (cl-create-command-queue context dev))
          (gauss-expr
           (opencl-function-expr 'gaussian)))
-    (destructuring-bind (convolutor cleanup)
-        (make-opencl-convolutor queue
-                                gauss-expr
-                                gauss-expr
-                                (cons -3d0 3d0)
-                                :nparams-A 3
-                                :nparams-B 3
-                                :type :double
-                                :ndomain ndomain)
-      (let* ((result
-              (sample-function (lambda (x)
-                                 (funcall convolutor
-                                          x
-                                          :params-A (list 1d0 0d0 1d0)
-                                          :params-B (list 1d0 0d0 1d0)))
-                               -3d0 3d0 1000)))
-        (funcall cleanup)
-        (cl-release-command-queue queue)
-        (cl-release-context context)
-        result))))
+
+    (with-opencl-context
+        (context plat (list dev))
+      (with-opencl-command-queue
+          (queue context dev)
+
+        (with-opencl-cleanup
+            (convolutor
+             (make-opencl-convolutor queue
+                                     gauss-expr
+                                     gauss-expr
+                                     (cons -3d0 3d0)
+                                     :nparams-A 3
+                                     :nparams-B 3
+                                     :type :double
+                                     :ndomain ndomain))
+          (let* ((result
+                  (sample-function (lambda (x)
+                                     (funcall convolutor
+                                              x
+                                              :params-A (list 1d0 0d0 1d0)
+                                              :params-B (list 1d0 0d0 1d0)))
+                                   -3d0 3d0 1000)))
+            result))))))
 
 ;; For comparison: CPU convolution
 ;; Convolution function
@@ -178,64 +180,64 @@ mapping from numbers to numbers."
 (defun convolution-example-2 (&optional (ndomain 1000))
   (let* ((plat (first (cl-get-platform-ids)))
          (dev (first (cl-get-device-ids plat
-                                        +CL-DEVICE-TYPE-ALL+)))
-         (context (cl-create-context plat (list dev)))
-         (queue (cl-create-command-queue context dev)))
-    (destructuring-bind (convolutor cleanup)
-        (make-opencl-convolutor queue
-                                (opencl-function-expr 'gaussian)
-                                (opencl-function-expr 'lorentz)
-                                (cons -7d0 7d0)
-                                :type :double
-                                :nparams-A 3
-                                :nparams-B 2
-                                :ndomain ndomain)
-      (draw
-       (page (list
-              (plot2d (list
-                       (line (lambda (x)
-                               (funcall convolutor
-                                        x
-                                        :params-A (list 1d0 0d0 1d0)
-                                        :params-B (list 0d0 1d0)))
-                             :title "OpenCL-Convoluted Voigt"
-                             :sampling (list :low -5d0
-                                             :high 5d0
-                                             :nsamples 1000))
-                       (line (lambda (x)
-                               (voigt x 1d0 1d0))
-                             :title "Mathematically-Convoluted Voigt"
-                             :sampling (list :low -5d0
-                                             :high 5d0
-                                             :nsamples 1000)))))))
-      (funcall cleanup)
-      (cl-release-command-queue queue)
-      (cl-release-context context))))
+                                        +CL-DEVICE-TYPE-ALL+))))
+    (with-opencl-context
+        (context plat (list dev))
+      (with-opencl-command-queue
+          (queue context dev)
+        (with-opencl-cleanup
+            (convolutor
+             (make-opencl-convolutor queue
+                                     (opencl-function-expr 'gaussian)
+                                     (opencl-function-expr 'lorentz)
+                                     (cons -7d0 7d0)
+                                     :type :double
+                                     :nparams-A 3
+                                     :nparams-B 2
+                                     :ndomain ndomain))
+          (draw
+           (page (list
+                  (plot2d (list
+                           (line (lambda (x)
+                                   (funcall convolutor
+                                            x
+                                            :params-A (list 1d0 0d0 1d0)
+                                            :params-B (list 0d0 1d0)))
+                                 :title "OpenCL-Convoluted Voigt"
+                                 :sampling (list :low -5d0
+                                                 :high 5d0
+                                                 :nsamples 1000))
+                           (line (lambda (x)
+                                   (voigt x 1d0 1d0))
+                                 :title "Mathematically-Convoluted Voigt"
+                                 :sampling (list :low -5d0
+                                                 :high 5d0
+                                                 :nsamples 1000))))))))))))
 
 (defun convolution-example-2-no-draw (&optional (ndomain 1000))
   (let* ((plat (first (cl-get-platform-ids)))
          (dev (first (cl-get-device-ids plat
-                                        +CL-DEVICE-TYPE-ALL+)))
-         (context (cl-create-context plat (list dev)))
-         (queue (cl-create-command-queue context dev)))
-    (destructuring-bind (convolutor cleanup)
-        (make-opencl-convolutor queue
-                                (opencl-function-expr 'gaussian)
-                                (opencl-function-expr 'lorentz)
-                                (cons -7d0 7d0)
-                                :type :double
-                                :nparams-A 3
-                                :nparams-B 2
-                                :ndomain ndomain)
-      (let* ((result
-              (sample-function
-               (lambda (x)
-                 (funcall convolutor
-                          x
-                          :params-A (list 1d0 0d0 1d0)
-                          :params-B (list 0d0 1d0)))
-               -3d0 3d0 1000)))
-        (funcall cleanup)
-        (cl-release-command-queue queue)
-        (cl-release-context context)
-        result))))
+                                        +CL-DEVICE-TYPE-ALL+))))
+    (with-opencl-context
+        (context plat (list dev))
+      (with-opencl-command-queue
+          (queue context dev)
+        (with-opencl-cleanup
+            (convolutor
+             (make-opencl-convolutor queue
+                                     (opencl-function-expr 'gaussian)
+                                     (opencl-function-expr 'lorentz)
+                                     (cons -7d0 7d0)
+                                     :type :double
+                                     :nparams-A 3
+                                     :nparams-B 2
+                                     :ndomain ndomain))
+          (let* ((result
+                  (sample-function
+                   (lambda (x)
+                     (funcall convolutor
+                              x
+                              :params-A (list 1d0 0d0 1d0)
+                              :params-B (list 0d0 1d0)))
+                   -3d0 3d0 1000)))
+            result))))))

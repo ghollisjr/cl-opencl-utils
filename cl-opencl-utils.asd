@@ -19,6 +19,8 @@
      (:file "math")
      (:file "raw-functions")
      (:file "compile")
+     ;; Cleanup
+     (:file "cleanup")
      ;; Map-reduce
      (:file "map-reduce")
      ;; Convolutions
