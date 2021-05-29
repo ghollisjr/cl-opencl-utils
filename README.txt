@@ -111,8 +111,8 @@ The Lispified OpenCL C language follows a few rules:
    (typecast x :int) ==> ((int) x)
    (coerce x :int) ==> ((int) x)
 
-10. Pointers have a type operator, pointer, and can have their address
-    or value returned by the address and value operators:
+10. Pointers have a type operator, pointer.  The address and value
+    operators return the address or value of their argument:
 
     (var x :int 0)
     ;; create pointer variable to address of x
