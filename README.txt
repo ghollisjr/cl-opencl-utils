@@ -61,6 +61,17 @@ The Lispified OpenCL C language follows a few rules:
      sum = sum + i;
    }
 
+   (var x :double 1d0)
+   (var i :int 0)
+   (while (< i 5)
+     (setf x (* x 2d0)))
+   ==>
+   double x = 1.0;
+   int i = 0;
+   while(i < 5) {
+     x = x*2.0;
+   }
+
 8. Non-lower case terms can be supplied with Lisp strings, whereas
    symbols are converted to lowercase.
 
