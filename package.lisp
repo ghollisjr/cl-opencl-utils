@@ -35,6 +35,10 @@
    :undefclcfun
    :defclckernel
    :undefclckernel
+   ;; struct
+   :defclcstruct
+   :undefclcstruct
+   :pmember
    ;; syntax
    :call
    :struct

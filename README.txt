@@ -1,6 +1,6 @@
-cl-opencl-utils is a library of basic utilities for working with
-OpenCL, especially including a Lispified version of OpenCL C.  It is
-built on top of the cl-opencl library
+cl-opencl-utils is a library of utilities for working with OpenCL,
+especially including a Lispified version of OpenCL C.  It is built on
+top of the cl-opencl library
 (https://www.github.com/ghollisjr/cl-opencl).
 
 The examples/ directory has a few examples showing how to use some of
@@ -8,8 +8,7 @@ the included utilities.
 
 make-opencl-reducer and make-opencl-mapper are particularly useful as
 they provide basic map and reduce functionality that are
-OpenCL-accelerated but relatively convenient to use from a Lisp
-perspective.
+OpenCL-accelerated but convenient to use from a Lisp perspective.
 
 cl-opencl-utils is GPL3 with the exception of the c-type-name
 function, which is possible to use but I'm not sure if it can be
@@ -19,7 +18,8 @@ not, then just that part isn't.
 The Lispified OpenCL C language follows a few rules:
 
 1. If a symbol has not been given special meaning, it will be
-   translated into an all-lowercase string, symbols preserved.
+   translated into an all-lowercase string, non-alphanumeric symbols
+   preserved.
 
 2. If the first element of a list does not contain a symbol with a
    special meaning, it is translated into a C-style function call.
@@ -102,6 +102,44 @@ The Lispified OpenCL C language follows a few rules:
 
     (aref xs 5) ==> x[5]
     (aref ys 1 2 3) ==> y[1][2][3]
+
+12. Structs are defined with defstruct:
+
+    (defstruct mystruct
+     (:x :double)
+     (:y :int))
+     ==>
+     struct mystruct {
+       double x;
+       int y;
+     };
+
+    Members are accessed by member and pmember, member for struct
+    objects and pmember for pointers to struct objects:
+
+    (member s :x) ==> s.x
+    (pmember p :x) ==> p->x
+
+    Structs can also be defined in a similar way to functions via
+    defclcstruct, which both defines a CFFI type accessible to Lisp
+    and an OpenCL C struct of the same size and structure available on
+    the OpenCL device.  The above example could be defined in Lisp via
+
+    (defclcstruct mystruct
+     (:x :double)
+     (:y :int))
+
+    and later referred to as a type in Lispified OpenCL C code, e.g.
+
+    `(var s (:struct mystruct))
+
+    with the definition for "mystruct" automatically included in the
+    OpenCL C source string produced by the various compiler functions
+    listed below.  Note that the (:struct structname) form must be
+    used to refer to structs in Lispified OpenCL C, while support for
+    bare structs in CFFI is deprecated but still possible.  Good
+    practice is to use (:struct structname) for both.  See
+    examples/struct.lisp.
 
 When in doubt, test a form with the #'clc function to see what OpenCL
 C code it produces.
