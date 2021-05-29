@@ -36,8 +36,18 @@ forms"
           (remove-if (lambda (form)
                        (eq (first form)
                            'function))
-                     top-level-forms)))
-    (append prototypes
+                     top-level-forms))
+         ;; structs depend on non-functions and prototypes
+         (structs
+          (required-structs
+           (append prototypes
+                   non-function-forms
+                   function-forms)))
+         (struct-definitions
+          (mapcar #'struct-definition
+                  structs)))
+    (append struct-definitions
+            prototypes
             non-function-forms
             function-forms)))
 
@@ -72,14 +82,22 @@ top-level forms preceded by any required headers"
                                  explicit-function-forms))
          (prototypes
           (mapcar #'prototype function-forms))
+         
          (non-function-forms
           (remove-if (lambda (form)
                        (eq (first form)
                            'function))
                      top-level-forms))
+         (structs
+          (required-structs (append prototypes
+                                    function-forms
+                                    non-function-forms)))
+         (struct-definitions
+          (mapcar #'struct-definition structs))
          (progned-forms
           (cons 'progn
-                (append function-forms
+                (append struct-definitions
+                        function-forms
                         non-function-forms)))
          (headers
           (required-headers progned-forms)))
@@ -91,6 +109,9 @@ top-level forms preceded by any required headers"
                 (loop
                    for h in hs
                    do (format out "#include<~a>~%" hs))))
+      (loop
+         for expr in struct-definitions
+         do (format out "~a;~%" (clc expr)))
       (loop
          for expr in prototypes
          do (format out "~a;~%" expr))
@@ -136,6 +157,8 @@ includes."
          (progned-forms
           (cons 'progn
                 function-forms))
+         (structs (required-structs function-forms))
+         (struct-definitions (mapcar #'struct-definition structs))
          (headers
           (required-headers progned-forms)))
     (with-output-to-string (out)
@@ -146,6 +169,9 @@ includes."
                 (loop
                    for h in hs
                    do (format out "#include<~a>~%" hs))))
+      (loop
+         for expr in struct-definitions
+         do (format out "~a;~%" (clc expr)))
       (loop
          for expr in prototypes
          do (format out "~a;~%" expr))

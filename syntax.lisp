@@ -7,10 +7,14 @@
           (mapcar #'clc args)))
 
 ;;;; Define a structure
-(defclc struct (name &rest body)
-  (format nil "struct ~a {~%~{~a;~%};~};"
+(defclc defstruct (name &rest slots)
+  (format nil "struct ~a {~%~{~a;~%~}};"
           (clc name)
-          (mapcar #'clc body)))
+          (mapcar #'clc slots)))
+
+(defclc struct (arg)
+  (format nil "struct ~a"
+          (clc arg)))
 
 ;;;; sizeof operator
 (defclc sizeof (type)
@@ -84,7 +88,10 @@
             (clc type)
             (clc val))))
 
-;; Conveniencen alias
+;; typedefs
+;; (defclc typedef (
+
+;; Convenience alias
 (defclc coerce (val type)
   (clc `(typecast ,val ,type)))
 

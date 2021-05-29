@@ -223,7 +223,7 @@ done using the reducer."
       (list reducefn cleanup))))
 
 ;;; Maps
-(defun make-opencl-mapper (queue input-type mexpr
+(defun make-opencl-mapper (queue input-types mexpr
                            &key
                              (nparams 0)
                              output-type
@@ -232,24 +232,28 @@ done using the reducer."
                              options)
   "Returns a list (mapper cleanup) where mapper is of the form
 
-(lambda (in-buffer out-buffer &key params in-start in-end out-start) ...)
+(lambda (in-buffers out-buffer &key params) ...)
 
 that will perform a map operation according to the input parameters.
-in-buffer and out-buffer must be OpenCL memory objects, and in-start
-and in-end are optional indices into the in-buffer.  The results will
-be written to out-buffer starting at out-start.  in-start defaults to
-0, in-end defaults to the end of the input buffer, and out-start
-defaults to 0.  The return value of the generated function is an event
-that will need to be waited on and released at some point.
+in-buffers and out-buffer must be a list of OpenCL memory objects and
+a single object respectively.  The results will be written to
+out-buffer starting at 0.  If only a subset of a buffer should be read
+from or written to, use OpenCL sub buffers via cl-create-sub-buffer.
+The return value of the generated function is an event that will need
+to be waited on and released at some point.
 
 cleanup should be called once the mapper is done being used so that
-OpenCL memory can be cleaned up.
+OpenCL memory can be cleaned up.  The with-opencl-cleanup macro can be
+useful.
 
 queue must be an OpenCL queue handle.
 
-input-type should be a CFFI type designator.
+input-types should be a list of CFFI type designators or a single type
+designator.  In the case of a single type designator, in-starts and
+in-ends are assumed to be indices rather than lists of indices.
 
-If output-type is not specified, it is assumed to be input-type.
+If output-type is not specified, it is assumed to be the first
+input-type.
 
 mexpr should be a Lisp function accepting one string and returning
 OpenCL C code for an expression of a unary operation to apply to the
@@ -272,15 +276,16 @@ kernel OpenCL C code.
 
 options can be compiler options for the OpenCL kernel.
 
-start can be an initial index offset to start reading from the buffer.
-
-end can be a final index offset to stop reading from the buffer.  Uses
-subseq index convention, i.e. the element at index=end is not
-included.
-
 kernel and program will need to be released at some point once you're
 done using the reducer."
-  (let* ((output-type (if output-type output-type input-type))
+  (let* ((input-list-p (listp input-types))
+         (input-type-list (if input-list-p
+                              input-types
+                              (list input-types)))
+         (ninputs (length input-type-list))
+         (output-type (if output-type
+                          output-type
+                          (first input-type-list)))
          (kernel-source
           (concatenate
            'string
@@ -290,27 +295,34 @@ done using the reducer."
             `(concat
               ,preamble
               (kernel map
-                      ((var input (global (pointer ,input-type)))
-                       (var input_startend (global (pointer :ulong)))
+                      ((var n (global (pointer :ulong)))
                        (var params (global (pointer ,output-type)))
-                       (var output_start (global (pointer :ulong)))
-                       (var output (global (pointer ,output-type))))
+                       (var output (global (pointer ,output-type)))
+                       ,@(loop
+                            for i below ninputs
+                            for type in input-type-list
+                            collecting
+                              `(var ,(format nil "input~a" i)
+                                    (global (pointer ,type)))))
                       (var gid (const :int)
                            (get-global-id 0))
-                      (var start (const :ulong)
-                           (aref input_startend 0))
                       (var end (const :ulong)
-                           (aref input_startend 1))
-                      (var outstart (const :ulong)
-                           (aref output_start 0))
-                      (when (< (+ start gid)
+                           (aref n 0))
+                      (when (< gid
                                end)
-                        (setf (aref output (+ outstart gid))
+                        (setf (aref output gid)
                               ,(apply mexpr
-                                      `(aref input (+ start gid))
-                                      (loop
-                                         for i below nparams
-                                         collecting `(aref params ,i))))))))))
+                                      (append
+                                       (loop
+                                          for i below ninputs
+                                          collecting
+                                            `(aref ,(format nil
+                                                            "input~a"
+                                                            i)
+                                                   gid))
+                                       (loop
+                                          for i below nparams
+                                          collecting `(aref params ,i)))))))))))
          (context (cl-get-command-queue-info
                    queue +CL-QUEUE-CONTEXT+))
          (dev (cl-get-command-queue-info
@@ -322,15 +334,8 @@ done using the reducer."
     (let* ((kernel
             (cl-create-kernel program "map"))
            (lastparams NIL)
-           (lastin-start 0)
-           (lastin-end NIL)
-           (lastout-start 0)
-           (in-startendbuf
-            (cl-create-buffer context
-                              :flags +CL-MEM-READ-ONLY+
-                              :type :ulong
-                              :count 2))
-           (out-startbuf
+           (lastn NIL)
+           (nbuf
             (cl-create-buffer context
                               :flags +CL-MEM-READ-ONLY+
                               :type :ulong
@@ -341,56 +346,44 @@ done using the reducer."
                                           :type output-type
                                           :count nparams)))
            (mapfn
-            (lambda (in-buffer out-buffer &key params in-start in-end out-start)
-              (let* ((params (when (and (not (zerop nparams))
+            (lambda (in-buffers out-buffer &key params)
+              (let* ((in-buffer-list
+                      (if (listp in-buffers)
+                          in-buffers
+                          (list in-buffers)))
+                     (params (when (and (not (zerop nparams))
                                         params
                                         (not (equal params lastparams)))
                                (setf lastparams params)
                                params))
-                     (in-start (when (and in-start
-                                          (not (equal in-start lastin-start)))
-                                 (setf lastin-start in-start)
-                                 in-start))
-                     (in-bufsize (cl-get-mem-object-info in-buffer
-                                                         +CL-MEM-SIZE+))
-                     (in-end (cond
-                               ((and in-end
-                                     (not (equal in-end lastin-end)))
-                                (setf lastin-end in-end)
-                                in-end)
-                               ((not lastin-end)
-                                (setf lastin-end
-                                      (/ in-bufsize
-                                         (foreign-type-size input-type)))
-                                lastin-end)
-                               (t NIL)))
-                     (out-start (when (and out-start
-                                           (not (equal out-start lastout-start)))
-                                  (setf lastout-start
-                                        out-start)
-                                  out-start))
+                     (n
+                      (reduce #'min
+                              (loop
+                                 for b in in-buffer-list
+                                 for type in input-type-list
+                                 collecting
+                                   (floor (cl-get-mem-object-info
+                                           b
+                                           +CL-MEM-SIZE+)
+                                          (foreign-type-size type)))))
                      (event NIL)
                      (wgsize
                       (cl-get-kernel-work-group-info
                        kernel
                        dev
                        +CL-KERNEL-WORK-GROUP-SIZE+))
-                     (n (- lastin-end lastin-start))
                      (ngroups
                       (ceiling n
                                wgsize))
                      (globalworksize
                       (* wgsize ngroups)))
-                (when (or in-start in-end)
-                  (cl-enqueue-write-buffer queue in-startendbuf
+                (when (or (not lastn)
+                          (not (equal n lastn)))
+                  (setf lastn n)
+                  (cl-enqueue-write-buffer queue
+                                           nbuf
                                            :ulong
-                                           (list lastin-start
-                                                 lastin-end)
-                                           :blocking-p t))
-                (when out-start
-                  (cl-enqueue-write-buffer queue out-startbuf
-                                           :ulong
-                                           (list out-start)
+                                           (list lastn)
                                            :blocking-p t))
                 (when params
                   (cl-enqueue-write-buffer queue paramsbuf
@@ -398,25 +391,26 @@ done using the reducer."
                                            params
                                            :blocking-p t))
                 ;; set kernel arguments
-                (cl-set-kernel-arg kernel 0 :value in-buffer)
-                (cl-set-kernel-arg kernel 4 :value out-buffer)
+                (cl-set-kernel-arg kernel 2 :value out-buffer)
+                (loop
+                   for i from 3
+                   for inbuf in in-buffer-list
+                   do 
+                     (cl-set-kernel-arg kernel i :value inbuf))
                 (setf event
                       (cl-enqueue-ndrange-kernel queue kernel
                                                  (list globalworksize)
                                                  (list wgsize)))
-
                 event)))
            (cleanup
             (lambda ()
               (cl-release-kernel kernel)
               (cl-release-program program)
-              (cl-release-mem-object in-startendbuf)
-              (cl-release-mem-object out-startbuf)
+              (cl-release-mem-object nbuf)
               (when (not (zerop nparams))
                 (cl-release-mem-object paramsbuf)))))
       ;; set constant arguments
-      (cl-set-kernel-arg kernel 1 :value in-startendbuf)
-      (cl-set-kernel-arg kernel 2 :value paramsbuf)
-      (cl-set-kernel-arg kernel 3 :value out-startbuf)
+      (cl-set-kernel-arg kernel 0 :value nbuf)
+      (cl-set-kernel-arg kernel 1 :value paramsbuf)
       (list mapfn cleanup)
       )))

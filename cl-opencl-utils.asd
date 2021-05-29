@@ -11,6 +11,7 @@
      (:file "clc")
      (:file "clc-utils")
      (:file "function")
+     (:file "struct")
      (:file "syntax")
      (:file "headers")
      (:file "var")

@@ -35,7 +35,7 @@
       (with-opencl-command-queue
           (queue context dev)
         (with-opencl-cleanup
-            (logmap 
+            (logmap
              (make-opencl-mapper queue :float
                                  (lambda (x)
                                    `(log ,x))))
@@ -104,3 +104,50 @@
           (cl-release-command-queue queue)
           (cl-release-context context)
           result)))))
+
+(defun multimap-example ()
+  (let* ((plat (first (cl-get-platform-ids)))
+         (dev (first (cl-get-device-ids plat
+                                        +CL-DEVICE-TYPE-ALL+))))
+    (with-opencl-context (context plat (list dev))
+      (with-opencl-command-queue (queue context dev)
+        (let* ((xs
+                (loop
+                   for i below 100
+                   collecting (float i 1d0)))
+               (ys
+                (loop
+                   for i below 100
+                   collecting (float (* i 2) 1d0)))
+               (ndata (min (length xs)
+                           (length ys)))
+               (xbuf
+                (cl-create-buffer context
+                                  :type :double
+                                  :data xs))
+               (ybuf
+                (cl-create-buffer context
+                                  :type :double
+                                  :data ys))
+               (rbuf
+                (cl-create-buffer context
+                                  :type :double
+                                  :count ndata)))
+          (with-opencl-cleanup
+              (mapper
+               (make-opencl-mapper queue
+                                   (list :double :double)
+                                   (lambda (x y)
+                                     `(+ ,x ,y))))
+            (let* ((result
+                    (alexandria:last-elt
+                     (cl-wait-and-release-events
+                      (list (funcall mapper
+                                     (list xbuf ybuf)
+                                     rbuf)
+                            (cl-enqueue-read-buffer
+                             queue rbuf
+                             :double ndata))))))
+              (mapcar #'cl-release-mem-object
+                      (list rbuf xbuf ybuf))
+              result)))))))
