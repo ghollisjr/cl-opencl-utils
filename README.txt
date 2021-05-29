@@ -106,8 +106,8 @@ The Lispified OpenCL C language follows a few rules:
 12. Structs are defined with defstruct:
 
     (defstruct mystruct
-     (:x :double)
-     (:y :int))
+     (var x :double)
+     (var y :int))
      ==>
      struct mystruct {
        double x;
@@ -117,8 +117,8 @@ The Lispified OpenCL C language follows a few rules:
     Members are accessed by member and pmember, member for struct
     objects and pmember for pointers to struct objects:
 
-    (member s :x) ==> s.x
-    (pmember p :x) ==> p->x
+    (member s x) ==> s.x
+    (pmember p x) ==> p->x
 
     Structs can also be defined in a similar way to functions via
     defclcstruct, which both defines a CFFI type accessible to Lisp
@@ -131,7 +131,8 @@ The Lispified OpenCL C language follows a few rules:
 
     and later referred to as a type in Lispified OpenCL C code, e.g.
 
-    `(var s (:struct mystruct))
+    (var s (:struct mystruct))
+    (setf (member s :x) 1d0) ; setf works with members
 
     with the definition for "mystruct" automatically included in the
     OpenCL C source string produced by the various compiler functions
@@ -140,6 +141,12 @@ The Lispified OpenCL C language follows a few rules:
     bare structs in CFFI is deprecated but still possible.  Good
     practice is to use (:struct structname) for both.  See
     examples/struct.lisp.
+
+    Also note that as stated below, #'clc de-packages symbols, so
+    members can be defined and referred to using any package.  To
+    match CFFI style, keyword symbols are recommended for
+    defclcstruct, but in the above examples you can change the package
+    of any of the slot names and the same OpenCL C code will result.
 
 When in doubt, test a form with the #'clc function to see what OpenCL
 C code it produces.
