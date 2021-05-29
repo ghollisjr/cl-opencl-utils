@@ -77,3 +77,13 @@
        for expr in body
        do (format out "~a;~%" (clc expr)))
     (format out "}~%")))
+
+;; Do-while
+(defclc do-while (test &body body)
+  (with-output-to-string (out)
+    (format out "do {~%")
+    (loop
+       for expr in body
+       do (format out "~a;~%" (clc expr)))
+    (format out "} while(~a);"
+            (clc test))))

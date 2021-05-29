@@ -52,7 +52,8 @@ The Lispified OpenCL C language follows a few rules:
    ==>
    {int i = 0; int j = i;}
 
-7. for and while provide for-loops and while-loops:
+7. for, while, and do-while provide for-loops, while-loops and
+   do-while loops:
 
    (for (var i :int 0) (< i 10) (incf i)
         (setf sum (+ sum i)))
@@ -64,13 +65,24 @@ The Lispified OpenCL C language follows a few rules:
    (var x :double 1d0)
    (var i :int 0)
    (while (< i 5)
+     (incf i)
      (setf x (* x 2d0)))
    ==>
    double x = 1.0;
    int i = 0;
    while(i < 5) {
+     ++i;
      x = x*2.0;
    }
+
+   (do-while (< i 5)
+     (incf i)
+     (setf x (* x 2d0)))
+   ==>
+   do {
+     ++i;
+     x = x*2.0;
+   } while(i < 5);
 
 8. Non-lower case terms can be supplied with Lisp strings, whereas
    symbols are converted to lowercase.

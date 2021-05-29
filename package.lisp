@@ -74,6 +74,7 @@
    ;; control
    :for
    :while
+   :do-while
    ;; math
    :int-/
    :long-/
