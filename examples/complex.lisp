@@ -32,8 +32,10 @@
                                  ;; type
                                  '(:struct cl_complex)
                                  (lambda (x)
-                                   `(realpart (complex* ,x (complex/ ,x
-                                                                     (complex 1d0 1d0)))))
+                                   `(realpart
+                                     (complex* ,x
+                                               (complex/ ,x
+                                                         (complex 1d0 1d0)))))
                                  :output-type :double))
             (let* ((result
                     (first
