@@ -146,4 +146,11 @@
    :lorentz
    :voigt
    :skewed-voigt
-   ))
+   ;; Complex numbers
+   :complex+
+   :complex-
+   :complex*
+   :complex/
+   :complex_conj
+   :cabs
+   :cabs2))
