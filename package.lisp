@@ -29,6 +29,8 @@
    :clc
    ;; clc-utils
    :copy-array
+   ;; macro
+   :defclcmacro
    ;; function
    :set-explicit-clc-functions
    :defclcfun
@@ -37,6 +39,7 @@
    :undefclckernel
    ;; struct
    :defclcstruct
+   :defclcstruct-no-cffi
    :undefclcstruct
    :pmember
    ;; syntax
@@ -136,4 +139,11 @@
    :program-source-from-forms
    :program-source-from-kernels-fn
    :program-source-from-kernels
+   ;;; OpenCL C functions
+   ;; Distributions
+   :gaussian
+   :skewed-gaussian
+   :lorentz
+   :voigt
+   :skewed-voigt
    ))

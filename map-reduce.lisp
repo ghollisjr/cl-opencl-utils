@@ -278,7 +278,8 @@ options can be compiler options for the OpenCL kernel.
 
 kernel and program will need to be released at some point once you're
 done using the reducer."
-  (let* ((input-list-p (listp input-types))
+  (let* ((input-list-p (and (listp input-types)
+                            (not (eq (first input-types) :struct))))
          (input-type-list (if input-list-p
                               input-types
                               (list input-types)))

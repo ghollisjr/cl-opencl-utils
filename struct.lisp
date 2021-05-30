@@ -28,12 +28,22 @@ OpenCL C."
                 for s in slots
                 collecting s))))
 
+(defmacro defclcstruct-no-cffi (sname &body slots)
+  "Defines struct available to OpenCL C, but no CFFI type."
+  `(progn
+     ;; (defcstruct ,sname ,@slots)
+     (setf (gethash ',sname *clc-structs*)
+           ',(loop
+                for s in slots
+                collecting s))))
+
 (defmacro undefclcstruct (sname)
   `(remhash ',sname *clc-structs*))
 
 (defun required-structs-worker (code)
   "Returns list of required structs for code in reverse order of dependence."
-  (let ((traversed (make-hash-table :test 'eq)))
+  (let ((code (expand-clc-macros code))
+        (traversed (make-hash-table :test 'eq)))
     (labels ((rec (code)
                (list->set
                 (cond

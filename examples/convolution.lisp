@@ -17,15 +17,16 @@
 
 ;;;; Example 1: Two Gaussians.
 
-(defclcfun gaussian :double
-    ((var x :double)
-     (var amp :double)
-     (var mu :double)
-     (var sigma :double))
-  (return
-    (* (/ amp sigma)
-       0.5 +1/sqrt2+ +2/sqrtpi+ ; 1/sqrt(2 pi)
-       (exp (* -0.5 (expt (/ (- x mu) sigma) 2))))))
+;; This is already defined in math.lisp
+;; (defclcfun gaussian :double
+;;     ((var x :double)
+;;      (var amp :double)
+;;      (var mu :double)
+;;      (var sigma :double))
+;;   (return
+;;     (* (/ amp sigma)
+;;        0.5 +1/sqrt2+ +2/sqrtpi+ ; 1/sqrt(2 pi)
+;;        (exp (* -0.5 (expt (/ (- x mu) sigma) 2))))))
 
 (defun convolution-example-1 (&optional (ndomain 1000))
   (let* ((plat (first (cl-get-platform-ids)))
@@ -33,7 +34,8 @@
                       plat
                       +CL-DEVICE-TYPE-ALL+)))
          (gauss-expr
-          (opencl-function-expr 'gaussian)))
+          ;; note that gaussian has been shadowed by cl-ana
+          (opencl-function-expr 'cl-opencl-utils:gaussian)))
     (with-opencl-context
         (context plat (list dev))
       (with-opencl-command-queue
@@ -74,7 +76,7 @@
                       plat
                       +CL-DEVICE-TYPE-ALL+)))
          (gauss-expr
-          (opencl-function-expr 'gaussian)))
+          (opencl-function-expr 'cl-opencl-utils:gaussian)))
 
     (with-opencl-context
         (context plat (list dev))
@@ -164,18 +166,19 @@ mapping from numbers to numbers."
            (/ (expt (- x mu) 2)
               gamma)))))
 
-(defclcfun lorentz :double
-    ((var x :double)
-     (var mu :double)
-     (var gamma :double))
-  (return
-    ;; note that due to typing issues, single-argument division
-    ;; doesn't work in Lispified OpenCL C.
-    (/ 1d0
-       (* pi gamma
-          (+ 1d0
-             (/ (expt (- x mu) 2)
-                gamma))))))
+;; Defined in math.lisp
+;; (defclcfun lorentz :double
+;;     ((var x :double)
+;;      (var mu :double)
+;;      (var gamma :double))
+;;   (return
+;;     ;; note that due to typing issues, single-argument division
+;;     ;; doesn't work in Lispified OpenCL C.
+;;     (/ 1d0
+;;        (* pi gamma
+;;           (+ 1d0
+;;              (/ (expt (- x mu) 2)
+;;                 gamma))))))
 
 (defun convolution-example-2 (&optional (ndomain 1000))
   (let* ((plat (first (cl-get-platform-ids)))
@@ -188,8 +191,8 @@ mapping from numbers to numbers."
         (with-opencl-cleanup
             (convolutor
              (make-opencl-convolutor queue
-                                     (opencl-function-expr 'gaussian)
-                                     (opencl-function-expr 'lorentz)
+                                     (opencl-function-expr 'cl-opencl-utils:gaussian)
+                                     (opencl-function-expr 'cl-opencl-utils:lorentz)
                                      (cons -7d0 7d0)
                                      :type :double
                                      :nparams-A 3
@@ -225,8 +228,8 @@ mapping from numbers to numbers."
         (with-opencl-cleanup
             (convolutor
              (make-opencl-convolutor queue
-                                     (opencl-function-expr 'gaussian)
-                                     (opencl-function-expr 'lorentz)
+                                     (opencl-function-expr 'cl-opencl-utils:gaussian)
+                                     (opencl-function-expr 'cl-opencl-utils:lorentz)
                                      (cons -7d0 7d0)
                                      :type :double
                                      :nparams-A 3

@@ -80,7 +80,8 @@ program's code."
 
 (defun required-functions (code)
   "Returns list of required functions for code"
-  (let ((traversed (make-hash-table :test 'eq)))
+  (let ((code (expand-clc-macros code))
+        (traversed (make-hash-table :test 'eq)))
     (labels ((rec (code)
                ;; recurses through code
                (list->set
@@ -90,6 +91,9 @@ program's code."
                    (cond
                      ((eq (first code)
                           'eval)
+                      nil)
+                     ((eq (first code)
+                          :struct)
                       nil)
                      ((gethash (first code) traversed)
                       nil)

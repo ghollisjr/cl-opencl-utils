@@ -8,6 +8,7 @@
     ((:file "package")
      (:file "utils")
      ;; OpenCL Lispified C system
+     (:file "macro")
      (:file "clc")
      (:file "clc-utils")
      (:file "function")

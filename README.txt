@@ -165,11 +165,28 @@ The Lispified OpenCL C language follows a few rules:
     practice is to use (:struct structname) for both.  See
     examples/struct.lisp.
 
-    Also note that as stated below, #'clc de-packages symbols, so
-    members can be defined and referred to using any package.  To
-    match CFFI style, keyword symbols are recommended for
-    defclcstruct, but in the above examples you can change the package
-    of any of the slot names and the same OpenCL C code will result.
+    Also note that as stated below, #'clc de-packages symbols (except
+    functions, kernels, and structs defined with defclcfun,
+    defclckernel, and defclcstruct), so members can be defined and
+    referred to using any package.  To match CFFI style, keyword
+    symbols are recommended for defclcstruct, but in the above
+    examples you can change the package of any of the slot names and
+    the same OpenCL C code will result.
+
+13. Macros can be defined with defclcmacro:
+
+    (defclcmacro square (x)
+      `(* ,x ,x))
+    (square 2) ==> (* 2 2) ==> 2*2
+
+    Macros have already been used to define complex+ and complex- in
+    math.lisp, for example.
+
+14. Complex numbers are supported by CFFI type (:struct cl_complex).
+    Note that native Lisp complex numbers are automatically converted
+    to and from CFFI, so this type can be used with the OpenCL
+    functions and native complex data can be sent and received.  See
+    examples/complex.lisp.
 
 When in doubt, test a form with the #'clc function to see what OpenCL
 C code it produces.
@@ -191,6 +208,11 @@ you're using.  E.g.,
 
 (clc `(cl:+ 2 2)) ==> (2+2)
 (clc `(some-package:+ 2 2)) ==> (2+2)
+
+However, there are mechanisms for defining OpenCL C functions and
+struct types, and these are package-dependent so as to allow different
+utility libraries to define functions without worrying about clashes.
+See notes on defclcfun, defclckernel, and defclcstruct.
 
 OpenCL source code is still converted into strings and supplied to the
 cl-opencl Lisp API functions like cl-create-program-with-source, but
@@ -242,7 +264,4 @@ For example, a basic hello-world kernel might be produced via:
   (cl-create-kernel program "hello"))
 
 I recommend reading the examples at least once to get an idea of how
-to use the utilities in a complementary way.  At the moment, I haven't
-included macros for the simple reason that the Lispified code is easy
-to generate with the backquote syntax, clc, and normal Lisp
-functions.
+to use the utilities in a complementary way.

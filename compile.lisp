@@ -3,7 +3,9 @@
 (defun program-source (&rest top-level-forms)
   "Returns full program source code (minus headers) given top-level
 forms"
-  (let* (;; many functions require proper code
+  (let* ((top-level-forms
+          (expand-clc-macros top-level-forms))
+         ;; many functions require proper code
          (raw-progned-forms
           (cons 'progn top-level-forms))
          (required-functions
@@ -54,7 +56,9 @@ forms"
 (defun program-source-from-forms-fn (&rest top-level-forms)
   "Returns string for the entire OpenCL C program consisting of the
 top-level forms preceded by any required headers"
-  (let* (;; many functions require proper code
+  (let* ((top-level-forms
+          (expand-clc-macros top-level-forms))
+         ;; many functions require proper code
          (raw-progned-forms
           (cons 'progn top-level-forms))
          (required-functions
@@ -70,19 +74,21 @@ top-level forms preceded by any required headers"
           (mapcar (lambda (fsym)
                     (destructuring-bind (&key type clc-args body)
                         (gethash fsym *clc-funs*)
-                      `(function ,fsym ,type ,clc-args ,@body)))
+                      (expand-clc-macros
+                       `(function ,fsym ,type ,clc-args ,@body))))
                   required-functions))
          (alt-function-forms
           (loop
              for rf in required-functions
              appending
-               (altdefinitions rf)))
+               (expand-clc-macros
+                (altdefinitions rf))))
          (function-forms (append implicit-function-forms
                                  alt-function-forms
                                  explicit-function-forms))
          (prototypes
           (mapcar #'prototype function-forms))
-         
+
          (non-function-forms
           (remove-if (lambda (form)
                        (eq (first form)
@@ -125,10 +131,12 @@ top-level forms preceded by any required headers"
 (defmacro program-source-from-forms (&body top-level-forms)
   "Macro version of program-fn where top-level-forms are not
 evaluated."
-  `(program-source-from-forms-fn
-    ,@(loop
-         for expr in top-level-forms
-         collecting `',expr)))
+  (let* ((top-level-forms
+          (expand-clc-macros top-level-forms)))
+    `(program-source-from-forms-fn
+      ,@(loop
+           for expr in top-level-forms
+           collecting `',expr))))
 
 (defun program-source-from-kernels-fn (&rest kernels)
   "Returns string source code of program containing all code needed
@@ -137,19 +145,21 @@ includes."
   (let* (;; many functions require proper code
          (required-functions
           (required-functions kernels))
-         
+
          ;; Prototyping required:
          (implicit-function-forms
           (mapcar (lambda (fsym)
                     (destructuring-bind (&key type clc-args body)
                         (gethash fsym *clc-funs*)
-                      `(function ,fsym ,type ,clc-args ,@body)))
+                      (expand-clc-macros
+                       `(function ,fsym ,type ,clc-args ,@body))))
                   required-functions))
          (alt-function-forms
           (loop
              for rf in required-functions
              appending
-               (altdefinitions rf)))
+               (expand-clc-macros
+                (altdefinitions rf))))
          (function-forms (append implicit-function-forms
                                  alt-function-forms))
          (prototypes
