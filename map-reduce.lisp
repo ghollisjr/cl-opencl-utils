@@ -4,8 +4,12 @@
 (defparameter +OPENCL-ADD-REXPR+
   (opencl-function-expr '+))
 
+(defparameter +OPENCL-COMPLEX-ADD-REXPR+
+  (opencl-function-expr 'complex+))
+
 (defun make-opencl-reducer (queue type rexpr
                             &key
+                              (zero-expr 0)
                               (preamble "")
                               headers
                               options)
@@ -27,6 +31,10 @@ rexpr should be a Lisp function accepting two strings and returning
 either Lispified OpenCL C code or a string for an OpenCL C expression
 of a binary operation.  The expression can refer to code defined in
 the preamble string argument or included in one of the headers.
+
+zero-expr must be a Lispified OpenCL C expression for the value of
+'zero' for the given type.  For scalar real data, 0.  For complex
+data, (complex 0d0 0d0).
 
 memobj is the source memory buffer.
 
@@ -70,7 +78,7 @@ done using the reducer."
                            (aref startend 0))
                       (var end (const :ulong)
                            (aref startend 1))
-                      (setf (aref acc wid) 0)
+                      (setf (aref acc wid) ,zero-expr)
                       (barrier +CLK-LOCAL-MEM-FENCE+)
                       (when (< (+ start gid)
                                end)

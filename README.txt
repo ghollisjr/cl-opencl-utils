@@ -3,17 +3,23 @@ especially including a Lispified version of OpenCL C.  It is built on
 top of the cl-opencl library
 (https://www.github.com/ghollisjr/cl-opencl).
 
-The examples/ directory has a few examples showing how to use some of
-the included utilities.
+The examples/ directory has examples showing how to use some of the
+included utilities.
 
-make-opencl-reducer and make-opencl-mapper are particularly useful as
-they provide basic map and reduce functionality that are
-OpenCL-accelerated but convenient to use from a Lisp perspective.
+Features implemented so far:
 
-cl-opencl-utils is GPL3 with the exception of the c-type-name
-function, which is possible to use but I'm not sure if it can be
-promoted to GPL3 completely.  If so, then cl-opencl-utils is GPL3.  If
-not, then just that part isn't.
+* Lispified OpenCL C language
+* Complex numbers (full suite of functions in progress)
+* Map (make-opencl-mapper), multiple-input single-output mapping
+* Reduce (make-opencl-reducer)
+* Function sampling (make-opencl-function-sampler)
+* Finite-domain integration (make-opencl-integrator, make-opencl-complex-integrator)
+* Splines (make-opencl-spline-form)
+
+cl-opencl-utils is GPL3 with the exception of a few snippets of code
+that may or may not be able to be promoted to GPL from e.g. the MIT
+license.  If they can't be promoted then they're still MIT license as
+noted above each snippet.
 
 The Lispified OpenCL C language follows a few rules:
 

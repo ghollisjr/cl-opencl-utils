@@ -8,6 +8,7 @@
    :opencl-function-expr
    ;; reductions
    :+OPENCL-ADD-REXPR+
+   :+OPENCL-COMPLEX-ADD-REXPR+
    :make-opencl-reducer
    ;; maps
    :make-opencl-mapper
@@ -17,6 +18,7 @@
    :make-opencl-function-sampler
    ;; integration
    :make-opencl-integrator
+   :make-opencl-complex-integrator
    ;; splines
    :eval_cubic_spline
    :eval_cubic_spline_f

@@ -80,3 +80,37 @@
       (funcall cleanup)
       (cl-release-command-queue queue)
       (cl-release-context context))))
+
+;;;; Example with complex numbers:
+(defun integration-complex-example (&optional (ndomain 1000) (mode :simpson))
+  "Plot ln(x) in multiple ways"
+  (let* ((plat (first (cl-get-platform-ids)))
+         (dev (first (cl-get-device-ids plat +CL-DEVICE-TYPE-ALL+)))
+         (context (cl-create-context plat (list dev)))
+         (queue (cl-create-command-queue context dev)))
+    (destructuring-bind (integrator cleanup)
+        (make-opencl-complex-integrator
+         queue
+         (lambda (x)
+           `(complex ,x 1d0))
+         :mode mode)
+      (let* ((rfn (lambda (x)
+                    (realpart (funcall integrator 1d0 x :ndomain ndomain))))
+             (ifn (lambda (x)
+                    (imagpart (funcall integrator 1d0 x :ndomain ndomain)))))
+        (draw
+         (page (list
+                (plot2d (list
+                         (line rfn
+                               :sampling (list :low 1d0
+                                               :high 10d0
+                                               :nsamples 1000)
+                               :title "real part")
+                         (line ifn
+                               :sampling (list :low 1d0
+                                               :high 10d0
+                                               :nsamples 1000)
+                               :title "imaginary part")))))))
+      (funcall cleanup)
+      (cl-release-command-queue queue)
+      (cl-release-context context))))
