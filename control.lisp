@@ -58,6 +58,22 @@
 (defclc when (test &rest body)
   (clc `(if ,test (progn ,@body))))
 
+;; NOTE: This does not include break statements.  Include them if you
+;; want them with (break).
+(defclc case (expr &body cases)
+  (with-output-to-string (out)
+    (format out "switch(~a) {~%"
+            (clc expr))
+    (loop
+       for case in cases
+       do (destructuring-bind (val &rest body)
+              case
+            (format out "case ~a:~%~a~%"
+                    (clc val)
+                    (clc `(progn ,@body)))))
+    (format out "}~%")))
+     
+
 ;; Transliteration of OpenCL C for
 (defclc for (init test incr &body body)
   (with-output-to-string (out)

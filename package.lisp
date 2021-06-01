@@ -142,6 +142,7 @@
    :program-source-from-kernels-fn
    :program-source-from-kernels
    ;;; OpenCL C functions
+   ;; General
    ;; Distributions
    :gaussian
    :skewed-gaussian
@@ -153,6 +154,23 @@
    :complex-
    :complex*
    :complex/
+   :complexr* ; scalar multiply
    :complex_conj
    :cabs
-   :cabs2))
+   :cabs2
+   :complex_polar ; make complex number from (r,theta)
+   :cexp
+   ;; libcerf
+   :cerfcx
+   :cerfi
+   :erfi
+   :dawson
+   :faddeeva_re_w_of_z
+   :faddeeva_im_w_of_z
+   :voigt
+   :cerf
+   :cerfc
+   :cdawson
+   :erfcx
+   :faddeeva_im_w_of_x
+   :faddeeva_w_of_z))
