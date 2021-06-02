@@ -5,11 +5,14 @@
 ;;;; Modified from libcerf (https://sourceforge.net/projects/libcerf/)
 ;;;;
 ;;;; This is under the MIT license unless it can be promoted to GPL.
-;;;; 
-;;;; Note that this is not idiomatic Lispified C code.  This is a time
-;;;; saving exploitating of the function dependence check system so
-;;;; that each function is called in Lispified C code at least once
-;;;; and the rest might be hidden in strings of raw C code.
+;;;;
+;;;; Note that this project consists of bastardized code.  It is not
+;;;; idiomatic Lispified C code.  This is a time saving exploitating
+;;;; of the function dependence check system so that each function is
+;;;; called in Lispified C code at least once and the rest might be
+;;;; hidden in strings of raw C code.  I plan to pretty this up at
+;;;; some point.  The ideal strategy would be to define these with the
+;;;; rawfunction system once it's operational and tested.
 
 ;;; err_fcts.c
 (defclcfun cerfcx (:struct cl_complex)
@@ -111,12 +114,12 @@ return gam / pi / (x*x + gam*gam);
 
 (defclcfun cerf (:struct cl_complex)
     ((var z (:struct cl_complex)))
-  
+
   "// Steven G. Johnson, October 2012.
 
 // Compute erf(z), the complex error function,
 // using w_of_z except for certain regions."
-  
+
   (var x :double
        (realpart z))
   (var y :double
@@ -141,7 +144,7 @@ return gam / pi / (x*x + gam*gam);
   "double mRe_z2 = (y - x) * (x + y); // Re(-z^2), being careful of overflow
 double mIm_z2 = -2*x*y; // Im(-z^2)
 if (mRe_z2 < -750) // underflow
-return (x >= 0 ? 1.0 : -1.0);
+return complex((x >= 0 ? 1.0 : -1.0),0);
 
 /* Handle positive and negative x via different formulas,
 using the mirror symmetries of w, to avoid overflow/underflow
@@ -154,11 +157,14 @@ else if (fabs(mIm_z2) < 5e-3 && x < 5e-3)
 goto taylor_erfi;
 }
 /* don't use complex exp function, since that will produce spurious NaN
-values when multiplying w in an overflow situation. */
-return 1.0 - exp(mRe_z2) *
-(complex(cos(mIm_z2), sin(mIm_z2))
-  * faddeeva_w_of_z(C(-y,x)));
-}
+values when multiplying w in an overflow situation. */"
+  (return (complex- (complex 1d0 0d0)
+                    (complex* (complex (exp "mRe_z2") 0d0)
+                              (complex "cos(mIm_z2)"
+                                       "sin(mIm_z2)")
+                              (faddeeva_w_of_z (complex (- y)
+                                                        x)))))
+  "}
 else { // x < 0
 if (x > -8e-2) { // duplicate from above to avoid fabs(x) call
 if (fabs(y) < 1e-2)
@@ -170,11 +176,11 @@ else if (isnan(x))
 return complex(NAN, y == 0 ? 0 : NAN);
 /* don't use complex exp function, since that will produce spurious NaN
 values when multiplying w in an overflow situation. */"
-  (return (- (* (exp "mRe_z2")
-                (complex* (complex (cos "mIm_z2")
-                                   (sin "mIm_z2"))
-                          (faddeeva_w_of_z (complex y (- x)))))
-             1.0))
+  (return (complex- (complex* (complex (exp "mRe_z2") 0d0)
+                              (complex (cos "mIm_z2")
+                                       (sin "mIm_z2"))
+                              (faddeeva_w_of_z (complex y (- x))))
+                    (complex 1.0 0d0)))
   "}"
 
   "// Use Taylor series for small |z|, to avoid cancellation inaccuracy
@@ -184,22 +190,30 @@ taylor:
 struct cl_complex mz2 = complex(mRe_z2, mIm_z2); // -z^2"
   (return (complex*
            z
-           (+ (complex 1.1283791670955125739 0d0)
-              (* mz2
-                 (+ (complex 0.37612638903183752464 0d0)
-                    (* mz2
-                       (+ (complex 0.11283791670955125739 0d0)
-                          (* mz2
-                             (+ (complex 0.026866170645131251760 0d0)
-                                (* mz2
-                                   (complex 0.0052239776254421878422 0d0)))))))))))
+           (complex+
+            (complex 1.1283791670955125739 0d0)
+            (complex*
+             mz2
+             (complex+
+              (complex 0.37612638903183752464 0d0)
+              (complex*
+               mz2
+               (complex+
+                (complex 0.11283791670955125739 0d0)
+                (complex*
+                 mz2
+                 (complex+
+                  (complex 0.026866170645131251760 0d0)
+                  (complex*
+                   mz2
+                   (complex 0.0052239776254421878422 0d0)))))))))))
   "}"
 
-  "/* for small |x| and small |xy|, 
+  "/* for small |x| and small |xy|,
 use Taylor series to avoid cancellation inaccuracy:
 erf(x+iy) = erf(iy)
 + 2*exp(y^2)/sqrt(pi) *
-[ x * (1 - x^2 * (1+2y^2)/3 + x^4 * (3+12y^2+4y^4)/30 + ... 
+[ x * (1 - x^2 * (1+2y^2)/3 + x^4 * (3+12y^2+4y^4)/30 + ...
          - i * x^2 * y * (1 - x^2 * (3+2y^2)/6 + ...) ]
          where:
          erf(iy) = exp(y^2) * Im[w(y)]
@@ -216,8 +230,8 @@ erf(x+iy) = erf(iy)
                                      + y2 * (0.45135166683820502956
                                              + 0.15045055561273500986*y2))),
              expy2 * (faddeeva_im_w_of_x(y)
-                      - x2*y * (1.1283791670955125739 
-                                - x2 * (0.56418958354775628695 
+                      - x2*y * (1.1283791670955125739
+                                - x2 * (0.56418958354775628695
                                         + 0.37612638903183752464*y2))));
     }")
 
@@ -249,7 +263,7 @@ if (x*x > 750) // underflow
 return complex(x >= 0 ? 0.0 : 2.0,
            -y); // preserve sign of 0
 return complex(x >= 0 ? exp(-x*x) * " (erfcx x)
-": 2. - exp(-x*x) * erfcx(-x),
+  ": 2. - exp(-x*x) * erfcx(-x),
            -y); // preserve sign of zero
 }
 
@@ -260,10 +274,10 @@ return (x >= 0 ? 0.0 : 2.0);
 
 if (x >= 0)
 return " (cexp "complex(mRe_z2, mIm_z2)")
-"* faddeeva_w_of_z(complex(-y,x));
+  "* faddeeva_w_of_z(complex(-y,x));
 else
 return 2.0 - " (cexp "complex(mRe_z2, mIm_z2)")
-"* faddeeva_w_of_z(complex(y,-x));
+  "* faddeeva_w_of_z(complex(y,-x));
 }")
 
 (defclcfun cdawson (:struct cl_complex)
@@ -281,11 +295,14 @@ const double spi2 = 0.8862269254527580136490837416705725913990; // sqrt(pi)/2"
   (var y :double
        (imagpart z))
 
-  "// handle axes separately for speed & proper handling of x or y = Inf or NaN
+  (concat
+   "// handle axes separately for speed & proper handling of x or y = Inf or NaN
 if (y == 0)
-return " (complex (* spi2
-                     (faddeeva_im_w_of_x x))
-                  (- y)) "; // preserve sign of 0
+return "
+   (complex (* spi2
+               (faddeeva_im_w_of_x x))
+            (- y))
+"; // preserve sign of 0
 if (x == 0) {
 double y2 = y*y;
 if (y2 < 2.5e-5) { // Taylor expansion
@@ -295,7 +312,7 @@ return complex(x, // preserve sign of 0
                          + y2 * 0.26666666666666666666666666666666666667)));
 }
 return complex(x, // preserve sign of 0
-            spi2 * (y >= 0 
+            spi2 * (y >= 0
                       ? exp(y2) - erfcx(y)
                       : " (erfcx (- y)) "- exp(y2)));
 }
@@ -313,10 +330,15 @@ if (fabs(x) < 5e-3)
 goto taylor;
 else if (fabs(mIm_z2) < 5e-3)
 goto taylor_realaxis;
-}
-cmplx res = " (cexp mz2) " - " (faddeeva_w_of_z z)";
-return spi2 * complex(-imagpart(res), realpart(res));
-}
+}"
+   (statements
+    (var res (:struct cl_complex)
+         (complex- (cexp mz2)
+                   (faddeeva_w_of_z z)))
+    (return (complexr* (complex (- (imagpart res))
+                                (realpart res))
+                       spi2)))
+   "}
 else { // y < 0
 if (y > -5e-3) { // duplicate from above to avoid fabs(x) call
 if (fabs(x) < 5e-3)
@@ -325,26 +347,41 @@ else if (fabs(mIm_z2) < 5e-3)
 goto taylor_realaxis;
 }
 else if (isnan(y))
-return C(x == 0 ? 0 : NaN, NaN);
-cmplx res = faddeeva_w_of_z(-z) - cexp(mz2);
-return spi2 * C(-imagpart(res), realpart(res));
+return complex(x == 0 ? 0 : NAN, NAN);"
+   (statement
+    (var res (:struct cl_complex)
+         (complex-
+         (faddeeva_w_of_z (complex- z))
+         (cexp mz2))))
+
+   "return complex(spi2*-imagpart(res), spi2*realpart(res));
 }
 
 // Use Taylor series for small |z|, to avoid cancellation inaccuracy
 //     dawson(z) = z - 2/3 z^3 + 4/15 z^5 + ...
-taylor:
-return z * (1.
-            + mz2 * (0.6666666666666666666666666666666666666667
-                     + mz2 * 0.2666666666666666666666666666666666666667));
+taylor:"
+   (return
+     (complex*
+      z
+      (complex+
+       (complex 1d0 0d0)
+       (complex*
+        mz2
+        (complex+
+         (complex 0.6666666666666666666666666666666666666667d0 0d0)
+         (complex*
+          mz2
+          (complex 0.2666666666666666666666666666666666666667d0 0d0))))))
+     )";
 
-/* for small |y| and small |xy|, 
+/* for small |y| and small |xy|,
 use Taylor series to avoid cancellation inaccuracy:
 dawson(x + iy)
 = D + y^2 (D + x - 2Dx^2)
 + y^4 (D/2 + 5x/6 - 2Dx^2 - x^3/3 + 2Dx^4/3)
 + iy [ (1-2Dx) + 2/3 y^2 (1 - 3Dx - x^2 + 2Dx^3)
 + y^4/15 (4 - 15Dx - 9x^2 + 20Dx^3 + 2x^4 - 4Dx^5) ] + ...
-where D = dawson(x) 
+where D = dawson(x)
 
 However, for large |x|, 2Dx -> 1 which gives cancellation problems in
 this series (many of the leading terms cancel).  So, for large |x|,
@@ -384,11 +421,11 @@ return complex((0.5 + y2 * (0.5 + 0.25*y2
                          - 0.26666666666666666667*y2))
          / (2*x2 - 1));
 }
-return (1. / (-15 + x2*(90 + x2*(-60 + 8*x2)))) *
+return complex_mult(complex(1. / (-15 + x2*(90 + x2*(-60 + 8*x2))),0),
 complex(x * (33 + x2 * (-28 + 4*x2)
           + y2 * (18 - 4*x2 + 4*y2)),
     y * (-15 + x2 * (24 - 4*x2)
-             + y2 * (4*x2 - 10 - 4*y2)));
+             + y2 * (4*x2 - 10 - 4*y2))));
 }
 else {
 double D = spi2 * " (faddeeva_im_w_of_x x)";
@@ -405,7 +442,7 @@ return complex
                                             - D*x * (1 - x2 * (1.3333333333333333333
                                                                - 0.26666666666666666667 * x2)))));
 }
-}")
+}"))
 
 ;;; exfcx.c
 (defclcfun cerf_erfcx_y100 :double
@@ -828,7 +865,8 @@ return complex
 
 (defclcfun erfcx :double
     ((var x double))
-  "// Steven G. Johnson, October 2012.
+  (concat
+   "// Steven G. Johnson, October 2012.
 
 // This function combines a few different ideas.
 
@@ -866,11 +904,12 @@ return ispi / x;
 ispi / (x+0.5/(x+1/(x+1.5/(x+2/x))))  */
 return ispi*((x*x) * (x*x+4.5) + 2) / (x * ((x*x) * (x*x+5) + 3.75));
 }
-return erfcx_y100(400/(4+x));
+return " (cerf_erfcx_y100 "(400/(4+x))")
+   ";
 }
 else
 return x < -26.7 ? HUGE_VAL : (x < -6.1 ? 2*exp(x*x)
-                                 : 2*exp(x*x) - erfcx_y100(400/(4-x)));")
+                                 : 2*exp(x*x) - cerf_erfcx_y100(400/(4-x)));"))
 
 ;;; im_w_of_x.c
 (defclcfun cerf_w_im_y100 :double
@@ -1625,10 +1664,14 @@ return x < -26.7 ? HUGE_VAL : (x < -6.1 ? 2*exp(x*x)
                                               }
                                               }
                                               finish:
-                                              return ret + complex((0.5*c)*y*(sum2+sum3),
-                                                             (0.5*c)*copysign(sum5-sum4, realpart(z)));
-                                              ")
-  )
+                                              return "
+                            (complex+ ret
+                                      "complex((0.5*c)*y*(sum2+sum3),
+                                                (0.5*c)*copysign(sum5-sum4, realpart(z)))")
+                            ;; complex_add(ret,
+                            ;;             complex((0.5*c)*y*(sum2+sum3),
+                            ;;                     (0.5*c)*copysign(sum5-sum4, realpart(z))))
+                            ";"))
 
 ;; (defclcfun voigt :double
 ;;     ((var x :double)

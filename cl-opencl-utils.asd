@@ -21,6 +21,10 @@
      (:file "math")
      (:file "raw-functions")
      (:file "compile")
+     ;; OpenCL C math utilities
+     (:file "complex")
+     (:file "math-functions")
+     (:file "libcerf")
      ;; Cleanup
      (:file "cleanup")
      ;; Map-reduce

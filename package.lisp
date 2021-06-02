@@ -150,6 +150,7 @@
    :voigt
    :skewed-voigt
    ;; Complex numbers
+   :cl_complex
    :complex+
    :complex-
    :complex*

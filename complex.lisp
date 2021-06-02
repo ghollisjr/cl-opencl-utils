@@ -85,12 +85,14 @@
     (rec args)))
 
 (defclcmacro complex- (&rest args)
-  (labels ((rec (xs)
-             (if (cdr xs)
-                 `(complex_sub ,(rec (butlast xs))
-                               ,(first (last xs)))
-                 (first xs))))
-    (rec args)))
+  (if (equal (length args) 1)
+      `(complex_unary_sub ,(first args))
+      (labels ((rec (xs)
+                 (if (cdr xs)
+                     `(complex_sub ,(rec (butlast xs))
+                                   ,(first (last xs)))
+                     (first xs))))
+        (rec args))))
 
 (defclcfun complex_add (:struct cl_complex)
     ((var x (:struct cl_complex))
@@ -132,6 +134,16 @@
               (member y :real))))
   (return result))
 
+(defclcfun complex_unary_sub (:struct cl_complex)
+    ((var z (:struct cl_complex)))
+  (var result
+       (:struct cl_complex))
+  (setf (member result :real)
+        (- (member z :real)))
+  (setf (member result :imag)
+        (- (member z :imag)))
+  (return result))
+
 (defclcmacro complex* (&rest args)
   (labels ((rec (xs)
              (if (cdr xs)
@@ -148,7 +160,7 @@
   (setf (member result :real)
         (* (member x :real) y))
   (setf (member result :imag)
-        (* (member result :imag)
+        (* (member x :imag)
            y))
   (return result))
 
@@ -197,7 +209,8 @@
 ;; complex exponential
 (defclcfun cexp (:struct cl_complex)
     ((var z (:struct cl_complex)))
-  (complexr*
-   (complex (cos (member z :imag))
-            (sin (member z :imag)))
-   (exp (member z :real))))
+  (return
+    (complexr*
+     (complex (cos (member z :imag))
+              (sin (member z :imag)))
+     (exp (member z :real)))))
