@@ -10,8 +10,7 @@
 (defpackage #:convolution-example
   (:use :cl
         :cl-opencl
-        :cl-opencl-utils
-        :cl-cerf))
+        :cl-opencl-utils))
 (cl-ana.package-utils:use-package-group :cl-ana :convolution-example)
 (in-package :convolution-example)
 
@@ -70,7 +69,9 @@
                                                  :nsamples 1000)
                                  :title "Mathematically-Convoluted Gaussians")))))))))))
 
-(defun convolution-example-1-no-draw (&optional (ndomain 1000))
+(defun convolution-example-1-no-draw (&optional
+                                        (ndomain 1000)
+                                        (nsamples 1000))
   (let* ((plat (first (cl-get-platform-ids)))
          (dev (first (cl-get-device-ids
                       plat
@@ -99,7 +100,7 @@
                                               x
                                               :params-A (list 1d0 0d0 1d0)
                                               :params-B (list 1d0 0d0 1d0)))
-                                   -3d0 3d0 1000)))
+                                   -3d0 3d0 nsamples)))
             result))))))
 
 ;; For comparison: CPU convolution
@@ -211,7 +212,7 @@ mapping from numbers to numbers."
                                                  :high 5d0
                                                  :nsamples 1000))
                            (line (lambda (x)
-                                   (voigt x 1d0 1d0))
+                                   (cl-cerf:voigt x 1d0 1d0))
                                  :title "Mathematically-Convoluted Voigt"
                                  :sampling (list :low -5d0
                                                  :high 5d0
