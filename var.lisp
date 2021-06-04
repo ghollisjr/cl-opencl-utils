@@ -47,3 +47,40 @@
 ;; Returns value pointed to by pointer
 (defclc value (pointer)
   (format nil "*(~a)" (clc pointer)))
+
+;;;; Global variables
+;;;;
+;;;; Global variables are known by their symbol alone, so be careful
+;;;; not to clobber another variable/function/macro.
+
+(defparameter *clc-gvars*
+  (make-hash-table :test 'equal))
+
+(defmacro defclcglobalvar (form)
+  "Defines a global variable using form.  form should be one of (var
+...) or (vararray ...).  The name of the global variable is taken from
+the var form."
+  (let* ((name (second form)))
+    `(setf (gethash ',name
+                    *clc-gvars*)
+           ',form)))
+
+(defun required-gvars (code)
+  "Returns list of required global variables of code in dependence
+ordering."
+  (let* ((found (make-hash-table :test 'eq))
+         (result NIL))
+    (labels ((rec (code)
+               (cond
+                 ((NULL code) nil)
+                 ((atom code)
+                  (when (and (gethash code *clc-gvars*)
+                             (not (gethash code found)))
+                    (setf (gethash code found) T)
+                    (rec (subseq (gethash code *clc-gvars*) 3))
+                    (push code result)))
+                 ((consp code)
+                  (rec (car code))
+                  (rec (cdr code))))))
+      (rec code)
+      (reverse result))))

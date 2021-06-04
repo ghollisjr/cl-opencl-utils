@@ -47,8 +47,18 @@ forms"
                    function-forms)))
          (struct-definitions
           (mapcar #'struct-definition
-                  structs)))
+                  structs))
+         (globals
+          (required-gvars
+           (append prototypes
+                   non-function-forms
+                   function-forms)))
+         (global-definitions
+          (loop
+             for g in globals
+             collecting (gethash g *clc-gvars*))))
     (append struct-definitions
+            global-definitions
             prototypes
             non-function-forms
             function-forms)))
@@ -100,9 +110,18 @@ top-level forms preceded by any required headers"
                                     non-function-forms)))
          (struct-definitions
           (mapcar #'struct-definition structs))
+         (globals
+          (required-gvars (append prototypes
+                                  function-forms
+                                  non-function-forms)))
+         (global-definitions
+          (loop
+             for g in globals
+             collecting (gethash g *clc-gvars*)))
          (progned-forms
           (cons 'progn
                 (append struct-definitions
+                        global-definitions
                         function-forms
                         non-function-forms)))
          (headers
@@ -117,6 +136,9 @@ top-level forms preceded by any required headers"
                    do (format out "#include<~a>~%" hs))))
       (loop
          for expr in struct-definitions
+         do (format out "~a;~%" (clc expr)))
+      (loop
+         for expr in global-definitions
          do (format out "~a;~%" (clc expr)))
       (loop
          for expr in prototypes
@@ -162,13 +184,21 @@ includes."
                 (altdefinitions rf))))
          (function-forms (append implicit-function-forms
                                  alt-function-forms))
+         (structs (required-structs function-forms))
+         (struct-definitions (mapcar #'struct-definition structs))
+         (globals (required-gvars function-forms))
+         (global-definitions
+          (loop
+             for g in globals
+             collecting (gethash g *clc-gvars*)))
          (prototypes
           (mapcar #'prototype function-forms))
          (progned-forms
           (cons 'progn
-                function-forms))
-         (structs (required-structs function-forms))
-         (struct-definitions (mapcar #'struct-definition structs))
+                (append struct-definitions
+                        global-definitions
+                        function-forms)))
+         
          (headers
           (required-headers progned-forms)))
     (with-output-to-string (out)
@@ -181,6 +211,9 @@ includes."
                    do (format out "#include<~a>~%" hs))))
       (loop
          for expr in struct-definitions
+         do (format out "~a;~%" (clc expr)))
+      (loop
+         for expr in global-definitions
          do (format out "~a;~%" (clc expr)))
       (loop
          for expr in prototypes

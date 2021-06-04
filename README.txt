@@ -188,7 +188,17 @@ The Lispified OpenCL C language follows a few rules:
     Macros have already been used to define complex+ and complex- in
     math.lisp, for example.
 
-14. Complex numbers are supported by CFFI type (:struct cl_complex).
+14. Global variables can be defined with defclcglobalvar:
+
+    (defclcglobalvar
+     (var G_X :double 0d0))
+    ==> double g_x 0.0; //note case
+
+    (defclcglobalvar
+     (var "G_X" :double 0d0))
+    ==> double G_X 0.0; //note case
+
+15. Complex numbers are supported by CFFI type (:struct cl_complex).
     Note that native Lisp complex numbers are automatically converted
     to and from CFFI, so this type can be used with the OpenCL
     functions and native complex data can be sent and received.  See

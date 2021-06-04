@@ -66,6 +66,7 @@
    :required-headers ; required headers for program
    :compile-flags ; compile flags for program
    ;; var
+   :defclcglobalvar
    :var
    :vararray
    :global

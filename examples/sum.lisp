@@ -12,16 +12,16 @@
          (queue
           (cl-create-command-queue context dev)))
     (destructuring-bind (clsum clsumcleanup)
-        (make-opencl-reducer queue :float
+        (make-opencl-reducer queue :double
                              +OPENCL-ADD-REXPR+)
       (let* ((databuf
               (cl-create-buffer context
                                 :flags +CL-MEM-WRITE-ONLY+
-                                :type :float
+                                :type :double
                                 :data
                                 (loop
                                    for i from start below end
-                                   collecting (float i)))))
+                                   collecting (float i 1d0)))))
         (let* ((result
                 (first
                  (cl-wait-and-release-events
