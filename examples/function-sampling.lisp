@@ -24,7 +24,7 @@
          queue
          (opencl-function-expr 'gaussian)
          :nparams 3
-         :output-type :double)
+         :domain-type :double)
       (cl-wait-and-release-events
        (list (funcall sampler buf
                       :params (list 1d0 0d0 1d0)
