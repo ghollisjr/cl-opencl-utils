@@ -24,6 +24,11 @@
    :eval_cubic_spline_f
    :serialize-spline-coef-array
    :make-opencl-spline-form
+   ;; RNG
+   :pcg32
+   :pcg32_init
+   :uniform_random
+   :uniform_randomf
    ;; cleanup
    :with-opencl-cleanup
    ;;; OpenCL Lispified C DSL

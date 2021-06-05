@@ -37,4 +37,6 @@
      (:file "integration")
      ;; Splines
      (:file "spline")
+     ;; RNG
+     (:file "random")
      ))

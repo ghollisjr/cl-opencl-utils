@@ -95,6 +95,6 @@ OpenCL C."
                         :array)
                     (destructuring-bind (element-type &rest dimensions)
                         (rest type)
-                      `(vararray ,element-type ,dimensions ,@inits)))
+                      `(vararray ,name ,element-type ,dimensions ,@inits)))
                    (t
                     `(var ,name ,type ,@inits)))))))))
