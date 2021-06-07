@@ -20,10 +20,18 @@
     (format out "(~{~a~^/~})" (mapcar #'clc forms))))
 
 (defclc incf (var &optional amount)
-  (format nil "(++~a)" (clc var)))
+  (if amount
+      (format nil "((~a) += (~a))"
+              (clc var)
+              (clc amount))
+      (format nil "(++(~a))" (clc var))))
 
-(defclc decf (var)
-  (format nil "(--~a)" (clc var)))
+(defclc decf (var &optional amount)
+  (if amount
+      (format nil "((~a) -= (~a))"
+              (clc var)
+              (clc amount))
+      (format nil "(--(~a))" (clc var))))
 
 ;;; modular arithmetic
 (defclc mod (x divisor)
