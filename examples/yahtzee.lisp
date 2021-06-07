@@ -15,6 +15,19 @@
 ;;;; so the way to implement this is to append pragma statements to
 ;;;; the beginning of the source code supplied to
 ;;;; cl-create-program-with-source.
+;;;;
+;;;; The key demonstration functions are
+;;;;
+;;;; * #'yahtzee to generate scores
+;;;;
+;;;; * #'yahtzee-hist to generate histograms of scores (index is
+;;;;   score, value is number of games with that score)
+;;;;
+;;;; * #'draw-yahtzee-hist to time the simulation and draw the results
+;;;;   using #'cl-ana.plotting:draw
+;;;;
+;;;; On my run-of-the-mill GPU, 10 billion games takes ~95 seconds
+;;;; round trip (i.e. OpenCL compilation and data transfer included).
 
 (defparameter *maxscore*
   (+ 35
@@ -74,7 +87,7 @@
     (return 0))
   (return 1))
 
-;; assumes all values have been set
+;; assumes scoresheet is complete
 (defclcfun score :ushort
     ((var sht (pointer (:struct scoresheet))))
   (var tmp :ushort)
@@ -107,9 +120,12 @@
                (? (> (pmember sht :y) 0)
                   (- (* (pmember sht :y) 100) 50)
                   0)))
-  (if (complete_scoresheet sht)
-      (return tmp)
-      (return 0)))
+  ;; This is the safe way:
+  #|(if (complete_scoresheet sht)
+        (return tmp)
+        (return 0))|#
+  ;; This is the fast way:
+  (return tmp))
 
 ;; Here 0-5 are the values rather than 1-6 for convenience
 (defclcfun throwdie :uchar ()

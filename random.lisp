@@ -60,16 +60,11 @@
         (+ seed GV_PCG32_INCREMENT))
   (pcg32))
 
-;; These use pcg32, so seed it with pcg32_init to get better quality
-;; results.
+;; These use pcg32, so seed with pcg32_init before use.
 (defclcfun uniform_randomf :float ()
   (return (/ (coerce (pcg32) :float)
-             ;; (- (expt 2.0 32) 1.0) ; accurate
-             (expt 2.0 32) ; faster
-             )))
+             4294967295.0))) ; 2^32-1
 
 (defclcfun uniform_random :double ()
   (return (/ (coerce (pcg32) :double)
-             ;; (- (expt 2.0 32) 1.0) ; accurate
-             (expt 2.0 32) ; faster
-             )))
+             4294967295.0))) ; 2^32-1
