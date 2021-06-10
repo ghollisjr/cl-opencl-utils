@@ -39,4 +39,8 @@
      (:file "spline")
      ;; RNG
      (:file "random")
+     ;; BLAS
+     (:file "blas")
+     ;; Runge-Kutta
+     (:file "rk4")
      ))

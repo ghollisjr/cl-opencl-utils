@@ -29,6 +29,10 @@
    :pcg32_init
    :uniform_random
    :uniform_randomf
+   ;; BLAS
+   :make-opencl-axpy
+   ;; RK4
+   :make-opencl-rk4
    ;; cleanup
    :with-opencl-cleanup
    ;;; OpenCL Lispified C DSL

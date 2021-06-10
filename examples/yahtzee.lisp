@@ -479,10 +479,6 @@
                     (list rbuf sbuf nbuf))
             result))))))
 
-;; utility for yahtzee-hist
-(defun zip (x y)
-  (mapcar #'cons x y))
-
 ;;;; Main result: Histogram generator for yahtzee-chaser strategy
 (defun yahtzee-hist (ngames)
   (let* ((plat (first (cl-get-platform-ids)))
