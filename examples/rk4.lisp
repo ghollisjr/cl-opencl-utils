@@ -56,3 +56,10 @@
             (cl-release-mem-object ybuf)
             (list (nreverse y1)
                   (nreverse y2))))))))
+
+;; ;;;; A more involved example where coupled pendulums
+;; (defclckernel coupled_pendulums_dydx
+;;     ((var n 
+
+;; (defun coupled-pendulums-example (&optional (npendulums 10))
+  
