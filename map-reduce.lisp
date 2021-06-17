@@ -10,7 +10,7 @@
 (defun make-opencl-reducer
     (queue type rexpr
      &key
-       (zero-expr 0)
+       ;; (zero-expr 0)
        (preamble "")
        headers
        options)
@@ -88,10 +88,10 @@ done using the reducer."
                                         localsize))))
                       (var nwork (const :int)
                            (? (= groupid lastgroupid)
-                              (mod n localsize)
+                              (? (= n localsize)
+                                 localsize
+                                 (mod n localsize))
                               localsize))
-                      (setf (aref acc wid) ,zero-expr)
-                      (barrier +CLK-LOCAL-MEM-FENCE+)
                       (when (< (+ start gid)
                                end)
                         (setf (aref acc wid)
@@ -99,7 +99,21 @@ done using the reducer."
                                     (+ start gid)))
                         (barrier +CLK-LOCAL-MEM-FENCE+)
                         (var niter :ulong
-                             (ceil (log2 (coerce nwork :float))))
+                             ;; I have no idea why this doesn't work
+                             ;; on POCL 1.7, but it doesn't.  It works
+                             ;; on the Linux NVIDIA 465.31 OpenCL
+                             ;; implementation.
+                             ;;
+                             ;; (ceil (log2 (coerce nwork :float)))
+                             ;;
+                             ;; However, this works.  I can contact
+                             ;; POCL upstream about this issue.  My
+                             ;; guess is that loop limits need to be
+                             ;; some quasi-constant values, and that
+                             ;; the values returned by OpenCL job ID
+                             ;; functions like get-local-id are
+                             ;; treated as quasi-constant values.
+                             (ceil (log2 (coerce localsize :float))))
                         (for (var i :ulong 0) (< i niter) (incf i)
                              (var stride (const :int)
                                   (<< 1
@@ -150,7 +164,10 @@ done using the reducer."
                       (ceiling n
                                wgsize))
                      (globalworksize
-                      (* wgsize ngroups))
+                      (* wgsize ngroups)
+                       ;; (min n
+                       ;;      (* wgsize ngroups))
+                       )
                      (startendbuf
                       (cl-create-buffer context
                                         :flags +CL-MEM-READ-ONLY+
