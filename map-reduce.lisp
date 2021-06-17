@@ -7,12 +7,13 @@
 (defparameter +OPENCL-COMPLEX-ADD-REXPR+
   (opencl-function-expr 'complex+))
 
-(defun make-opencl-reducer (queue type rexpr
-                            &key
-                              (zero-expr 0)
-                              (preamble "")
-                              headers
-                              options)
+(defun make-opencl-reducer
+    (queue type rexpr
+     &key
+       (zero-expr 0)
+       (preamble "")
+       headers
+       options)
   "Returns a list (reducer cleanup) where reducer is of the form
 
 (lambda (buffer &key start end) ...)
@@ -68,16 +69,27 @@ done using the reducer."
                        (var startend (global (pointer :ulong)))
                        (var output (global (pointer ,type)))
                        (var acc (local (pointer ,type))))
-                      (var nwork (const :int)
-                           (get-local-size 0))
-                      (var gid (const :int)
-                           (get-global-id 0))
-                      (var wid (const :int)
-                           (get-local-id 0))
                       (var start (const :ulong)
                            (aref startend 0))
                       (var end (const :ulong)
                            (aref startend 1))
+                      (var n (const :ulong)
+                           (- end start))
+                      (var gid (const :int)
+                           (get-global-id 0))
+                      (var wid (const :int)
+                           (get-local-id 0))
+                      (var localsize (const :int)
+                           (get-local-size 0))
+                      (var groupid (const :int)
+                           (get-group-id 0))
+                      (var lastgroupid (const :int)
+                           (1- (ceil (/ (coerce n :float)
+                                        localsize))))
+                      (var nwork (const :int)
+                           (? (= groupid lastgroupid)
+                              (mod n localsize)
+                              localsize))
                       (setf (aref acc wid) ,zero-expr)
                       (barrier +CLK-LOCAL-MEM-FENCE+)
                       (when (< (+ start gid)
@@ -120,19 +132,20 @@ done using the reducer."
               (let* ((start (if start
                                 start
                                 0))
-                     (bufsize (cl-get-mem-object-info buffer
-                                                      +CL-MEM-SIZE+))
+                     (bufsize (cl-get-mem-object-info
+                               buffer
+                               +CL-MEM-SIZE+))
                      (end (if end
                               end
                               (/ bufsize
                                  (foreign-type-size type))))
                      (events NIL) ; accumulated events and cleanup functions
+                     (n (- end start))
                      (wgsize
                       (cl-get-kernel-work-group-info
                        kernel
                        dev
                        +CL-KERNEL-WORK-GROUP-SIZE+))
-                     (n (- end start))
                      (ngroups
                       (ceiling n
                                wgsize))
@@ -161,9 +174,7 @@ done using the reducer."
                 (cl-set-kernel-arg kernel 3
                                    :type type
                                    :count wgsize)
-                (push (cl-enqueue-ndrange-kernel queue kernel
-                                                 (list globalworksize)
-                                                 (list wgsize))
+                (push (cl-enqueue-kernel queue kernel globalworksize)
                       events)
                 ;; loop
                 (let* ((niter (ceiling (log ngroups
@@ -199,14 +210,14 @@ done using the reducer."
                          (cl-set-kernel-arg kernel 1 :value startendbuf)
                          (cl-set-kernel-arg kernel 2 :value buf2)
                          (push
-                          (cl-enqueue-ndrange-kernel queue
-                                                     kernel
-                                                     (list globalworksize)
-                                                     (list localworksize))
+                          (cl-enqueue-kernel queue
+                                             kernel
+                                             globalworksize)
                           events)))
                   (destructuring-bind (finalevent returner)
                       (cl-enqueue-read-buffer
-                       queue buf2
+                       queue
+                       buf2
                        type 1)
                     (setf events (nreverse events))
                     (let* ((cleanup
@@ -219,10 +230,11 @@ done using the reducer."
                                          (funcall (second ev))
                                          (cl-release-event (first ev)))
                                        (cl-release-event ev)))
-                              (cl-release-mem-object outbuf2)
-                              (cl-release-mem-object outbuf1)
-                              (cl-release-mem-object startendbuf)
-                              (elt (funcall returner) 0))))
+                              (let* ((result (elt (funcall returner) 0)))
+                                (cl-release-mem-object outbuf2)
+                                (cl-release-mem-object outbuf1)
+                                (cl-release-mem-object startendbuf)
+                                result))))
                       (list finalevent cleanup)))))))
            (cleanup
             (lambda ()
@@ -404,7 +416,7 @@ done using the reducer."
                 (loop
                    for i from 3
                    for inbuf in in-buffer-list
-                   do 
+                   do
                      (cl-set-kernel-arg kernel i :value inbuf))
                 (setf event
                       (cl-enqueue-ndrange-kernel queue kernel

@@ -1,3 +1,12 @@
++ Add explicit dependency management via event-wait-list arguments for
+  all applicable utilities.  Utilities should not assume anything
+  unnecessary about command queues, such as whether they are IOE or
+  OOE.
+
+  This includes adding event-wait-list arguments to the utilities and
+  any functions they generate where such arguments would be
+  appropriate.
+
 + Add suite of complex math functions, including libcerf
 
 + Add support for complex integration
