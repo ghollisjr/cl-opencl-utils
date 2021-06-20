@@ -9,12 +9,14 @@ included utilities.
 Features implemented so far:
 
 * Lispified OpenCL C language
-* Complex numbers (full suite of functions in progress)
+* Complex numbers (full suite of functions in progress, including libcerf)
 * Map (make-opencl-mapper), multiple-input single-output mapping
-* Reduce (make-opencl-reducer)
+* Reduce (make-opencl-reducer), only associative 2-argument functions at the moment
+* Device-side RNG (pcg32 for PCG-XSH-RR 32 bit)
 * Function sampling (make-opencl-function-sampler)
 * Finite-domain integration (make-opencl-integrator, make-opencl-complex-integrator)
 * Splines (make-opencl-spline-form)
+* Runge-Kutta 4th order algorithm (make-opencl-rk4)
 
 cl-opencl-utils is GPL3 with the exception of a few snippets of code
 that may or may not be able to be promoted to GPL from e.g. the MIT
