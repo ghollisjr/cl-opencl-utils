@@ -128,16 +128,18 @@
   (return tmp))
 
 ;; Here 0-5 are the values rather than 1-6 for convenience
-(defclcfun throwdie :uchar ()
-  (return (mod (pcg32) 6)))
+(defclcfun throwdie :uchar
+    ((var rngstate (:pointer :ulong)))
+  (return (mod (pcg32 rngstate) 6)))
 
 (defclcfun throwdice :void
-    ((var dice (pointer :uchar))
-     (var throw (pointer :uchar)))
+    ((var rngstate (:pointer :ulong))
+     (var dice (:pointer :uchar))
+     (var throw (:pointer :uchar)))
   (for (var i :uchar 0) (< i 6) (incf i)
        (when (aref throw i)
          (setf (aref dice i)
-               (throwdie)
+               (throwdie rngstate)
                ;; 5
                ))))
 
@@ -373,14 +375,15 @@
 ;; Yahtzee chaser strategy: Keep throwing for Yahtzee and score the
 ;; most points based on the final dice state.
 (defclcfun ychase :void
-    ((var sht (pointer (:struct scoresheet))))
+    ((var rngstate (:pointer :ulong))
+     (var sht (:pointer (:struct scoresheet))))
   (vararray dice :uchar (5))
   ;; initially throw all dice
   (vararray throw :uchar (5)
             1 1 1 1 1)
   (for (var i :uchar 0) (< i 3) (incf i)
        ;; keep most popular and rethrow the rest
-       (throwdice dice throw)
+       (throwdice rngstate dice throw)
        (var mp :uchar)
        (var mpv :uchar)
        (mostpopular dice
@@ -397,11 +400,11 @@
 
 ;; Run the ychase strategy for an entire game and return total score
 (defclcfun ychasegame :ushort
-    ()
+    ((var rngstate (:pointer :ulong)))
   (var sht (:struct scoresheet))
   (init_scoresheet (address sht))
   (for (var i :uchar 0) (< i 13) (incf i)
-       (ychase (address sht)))
+       (ychase rngstate (address sht)))
   (return (score (address sht))))
 
 (defclckernel yahtzee
@@ -413,10 +416,11 @@
   (var nn (const :ulong)
        (value n))
   (when (< gid nn)
-    (pcg32_init (+ (value seed)
-                   gid))
+    (var rngstate :ulong
+         (pcg32_init (+ (value seed)
+                        gid)))
     (setf (aref scores gid)
-          (ychasegame))))
+          (ychasegame (address rngstate)))))
 
 (defclckernel yahtzeehist
     ((var n (global (pointer :ulong)))
@@ -427,9 +431,11 @@
   (var nn (const :ulong)
        (value n))
   (when (< gid nn)
-    (pcg32_init (+ (value seed)
-                   gid))
-    (atom_inc (address (aref hist (ychasegame))))))
+    (var rngstate :ulong
+         (pcg32_init (+ (value seed)
+                        gid)))
+    (atom_inc (address (aref hist (ychasegame
+                                   (address rngstate)))))))
 
 (defun yahtzee (ngames)
   (let* ((plat (first (cl-get-platform-ids)))
