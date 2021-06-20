@@ -12,11 +12,13 @@
   (var gid (const :int)
        (get-global-id 0))
   (var nn (const :ulong) (value n))
+
   (when (< gid nn)
-    (pcg32_init (+ (value seed)
-                   gid ))
+    (var rngstate :ulong
+         (pcg32_init (+ (value seed)
+                        gid )))
     (setf (aref results gid)
-          (pcg32))))
+          (pcg32 (address rngstate)))))
 
 (defun rng-example-1 ()
   (let* ((plat (first (cl-get-platform-ids)))
@@ -70,10 +72,11 @@
        (get-global-id 0))
   (var nn (const :ulong) (value n))
   (when (< gid nn)
-    (pcg32_init (+ (value seed)
-                   gid ))
+    (var rngstate :ulong
+         (pcg32_init (+ (value seed)
+                        gid )))
     (setf (aref results gid)
-          (uniform_random))))
+          (uniform_random (address rngstate)))))
 
 (defun rng-example-2 ()
   (let* ((plat (first (cl-get-platform-ids)))

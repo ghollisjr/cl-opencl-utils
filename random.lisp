@@ -17,11 +17,6 @@
 ;;; See examples/rng.lisp for the quick and dirty seed method.
 
 (defclcglobalvar
-    (var GV_PCG32_INIT_STATE
-         :ulong
-         "0x4d595df4d0f33173"))
-
-(defclcglobalvar
     (var GV_PCG32_MULTIPLIER
          (constant :ulong)
          "6364136223846793005u"))
@@ -58,7 +53,7 @@
     ((var seed :ulong))
   (var state :ulong
        (+ seed GV_PCG32_INCREMENT))
-  (pcg32)
+  (pcg32 (address state))
   (return state))
 
 ;; These use pcg32, so seed with pcg32_init before use.
