@@ -17,18 +17,18 @@
 ;;; See examples/rng.lisp for the quick and dirty seed method.
 
 (defclcglobalvar
-    (var GV_PCG32_STATE
+    (var GV_PCG32_INIT_STATE
          :ulong
          "0x4d595df4d0f33173"))
 
 (defclcglobalvar
     (var GV_PCG32_MULTIPLIER
-         :ulong
+         (constant :ulong)
          "6364136223846793005u"))
 
 (defclcglobalvar
     (var GV_PCG32_INCREMENT
-         (const :ulong)
+         (constant :ulong)
          "1442695040888963407u"))
 
 (defclcfun pcg32_rotr32 :uint
@@ -39,12 +39,12 @@
                                 31)))))
 
 (defclcfun pcg32 :uint
-    ()
-  (var x :ulong GV_PCG32_STATE)
+    ((var state (pointer :ulong)))
+  (var x :ulong (value state))
   (var count :uint
        (coerce (>> x 59)
                :uint))
-  (setf GV_PCG32_STATE
+  (setf (value state)
         (+ (* x GV_PCG32_MULTIPLIER)
            GV_PCG32_INCREMENT))
   (setf x
@@ -54,17 +54,20 @@
                                 :uint)
                         count)))
     
-(defclcfun pcg32_init :void
+(defclcfun pcg32_init :ulong
     ((var seed :ulong))
-  (setf GV_PCG32_STATE
-        (+ seed GV_PCG32_INCREMENT))
-  (pcg32))
+  (var state :ulong
+       (+ seed GV_PCG32_INCREMENT))
+  (pcg32)
+  (return state))
 
 ;; These use pcg32, so seed with pcg32_init before use.
-(defclcfun uniform_randomf :float ()
-  (return (/ (coerce (pcg32) :float)
+(defclcfun uniform_randomf :float
+    ((var state (:pointer :ulong)))
+  (return (/ (coerce (pcg32 state) :float)
              4294967295.0))) ; 2^32-1
 
-(defclcfun uniform_random :double ()
-  (return (/ (coerce (pcg32) :double)
+(defclcfun uniform_random :double
+    ((var state (:pointer :ulong)))
+  (return (/ (coerce (pcg32 state) :double)
              4294967295.0))) ; 2^32-1
