@@ -509,6 +509,22 @@
                 (cl-create-buffer context
                                   :type :ulong
                                   :count (1+ *maxscore*)))
+               (inithistsource
+                `(kernel inithist
+                         ((var hist (global (:pointer :ulong))))
+                         (var gid (const :ulong)
+                              (get-global-id 0))
+                         (when (<= gid YAHTZEE_MAX_SCORE)
+                           (setf (aref hist gid) 0))))
+               (inithistprogram
+                (let* ((p
+                        (cl-create-program-with-source
+                         context
+                         (program-source-from-forms-fn
+                          inithistsource))))
+                  (cl-build-program-with-log p (list dev))
+                  p))
+               (inithistkernel (cl-create-kernel inithistprogram "inithist"))
                (program
                 (let* ((p
                         (cl-create-program-with-source
@@ -521,6 +537,7 @@
                   p))
                (kernel
                 (cl-create-kernel program "yahtzeehist")))
+          (cl-set-kernel-arg inithistkernel 0 :value rbuf)
           (cl-set-kernel-arg kernel 0 :value nbuf)
           (cl-set-kernel-arg kernel 1 :value sbuf)
           (cl-set-kernel-arg kernel 2 :value rbuf)
@@ -528,9 +545,12 @@
                   (first
                    (last
                     (cl-wait-and-release-events
-                     (list (cl-enqueue-kernel queue kernel ngames)
+                     (list (cl-enqueue-kernel queue inithistkernel (1+ *maxscore*))
+                           (cl-enqueue-kernel queue kernel ngames)
                            (cl-enqueue-read-buffer
                             queue rbuf :ulong (1+ *maxscore*))))))))
+            (cl-release-kernel inithistkernel)
+            (cl-release-program inithistprogram)
             (cl-release-kernel kernel)
             (cl-release-program program)
             (mapcar #'cl-release-mem-object
