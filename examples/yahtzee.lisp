@@ -40,7 +40,7 @@
      30
      1250))
 (defclcglobalvar
-    (var YAHTZEE_MAX_SCORE :ushort 1575))
+    (var YAHTZEE_MAX_SCORE (constant :ushort) 1575))
 
 (defclcstruct scoresheet
   (:top (:array :uchar 6))
@@ -54,7 +54,7 @@
 
 ;; value to denote scoresheet slot that hasn't been written yet
 (defclcglobalvar
-    (var NULLSCORE :uchar 255))
+    (var NULLSCORE (constant :uchar) 255))
 
 (defclcfun init_scoresheet :void
     ((var sht (:pointer (:struct scoresheet))))
