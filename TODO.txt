@@ -1,11 +1,6 @@
-+ Add explicit dependency management via event-wait-list arguments for
-  all applicable utilities.  Utilities should not assume anything
-  unnecessary about command queues, such as whether they are IOE or
-  OOE.
-
-  This includes adding event-wait-list arguments to the utilities and
-  any functions they generate where such arguments would be
-  appropriate.
++ Add handlers/restarts for foreign memory cleanup.  At the moment
+  OpenCL memory is easily leaked due to encountering an error, so some
+  tools that assist in cleaning up memory would be useful.
 
 + Add suite of complex math functions, including libcerf
 
@@ -19,3 +14,12 @@
 - Add adjustable parameter support for:
 
   - make-opencl-mapper
+
+- Add explicit dependency management via event-wait-list arguments for
+  all applicable utilities.  Utilities should not assume anything
+  unnecessary about command queues, such as whether they are IOE or
+  OOE.
+
+  This includes adding event-wait-list arguments to the utilities and
+  any functions they generate where such arguments would be
+  appropriate.

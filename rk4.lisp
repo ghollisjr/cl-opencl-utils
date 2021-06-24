@@ -4,7 +4,7 @@
                         &key
                           (type :float))
   "Returns (stepper cleanup) where stepper is of the form (lambda (buf
-&key x-delta) ...) and has the effect of stepping the differential
+&key x-delta event-wait-list) ...) and has the effect of stepping the differential
 equation solution for y(x) forward by x-delta using the RK4 algorithm.
 buf will be modified by this, as it will contain the estimated value
 of y(x + x-delta).
@@ -84,7 +84,7 @@ kernel is called."
       (labels ((eventcleanup ()
                  (mapcar #'release-opencl-event events)
                  (setf events NIL))
-               (stepper (buf &key x-delta)
+               (stepper (buf &key x-delta event-wait-list)
                  (let* ((h x-delta)
                         (h2 (/ x-delta 2d0))
                         (h6 (/ x-delta 6d0)))
@@ -92,86 +92,129 @@ kernel is called."
                    (loop
                       for kbuf in kbufs
                       do (push (cl-enqueue-copy-buffer
-                                queue buf kbuf bufsize)
+                                queue buf kbuf bufsize
+                                :event-wait-list event-wait-list)
                                events))
                    ;; k1 = dy/dx(x,y)
                    (push (cl-enqueue-write-buffer
-                          queue xbuf type (list x))
+                          queue xbuf type (list x)
+                          :event-wait-list event-wait-list)
                          events)
                    (cl-set-kernel-arg kernel 1 :value buf)
                    (cl-set-kernel-arg kernel 2 :value (first kbufs))
-                   (push (cl-enqueue-kernel queue kernel y-count)
+                   (push (cl-enqueue-kernel queue kernel y-count
+                                            :event-wait-list
+                                            (append events event-wait-list))
                          events)
                    ;; k2 = dy/dx(x + h/2, y + k1*h/2)
                    (push (cl-enqueue-write-buffer
-                          queue xbuf type (list (+ x h2)))
+                          queue xbuf type (list (+ x h2))
+                          :event-wait-list (append events event-wait-list))
                          events)
                    (push (cl-enqueue-copy-buffer
-                          queue buf tmpbuf bufsize)
+                          queue buf tmpbuf bufsize
+                          :event-wait-list (append (subseq events 1)
+                                                   event-wait-list))
                          events)
                    (push (funcall axpy
                                   h2
                                   (first kbufs)
-                                  tmpbuf)
+                                  tmpbuf
+                                  :event-wait-list
+                                  (append events event-wait-list))
                          events)
                    (cl-set-kernel-arg kernel 1 :value tmpbuf)
                    (cl-set-kernel-arg kernel 2 :value (second kbufs))
-                   (push (cl-enqueue-kernel queue kernel y-count)
+                   (push (cl-enqueue-kernel queue kernel y-count
+                                            :event-wait-list
+                                            (append events
+                                                    event-wait-list))
                          events)
                    ;; k3 = dy/dx(x + h/2, y + k2*h/2)
                    (push (cl-enqueue-copy-buffer
-                          queue buf tmpbuf bufsize)
+                          queue buf tmpbuf bufsize
+                          :event-wait-list
+                          (append events event-wait-list))
                          events)
                    (push (funcall axpy
                                   h2
                                   (second kbufs)
-                                  tmpbuf)
+                                  tmpbuf
+                                  :event-wait-list
+                                  (append events event-wait-list))
                          events)
                    (cl-set-kernel-arg kernel 2 :value (third kbufs))
-                   (push (cl-enqueue-kernel queue kernel y-count)
+                   (push (cl-enqueue-kernel queue kernel y-count
+                                            :event-wait-list
+                                            (append events
+                                                    event-wait-list))
                          events)
                    ;; k4
                    (push (cl-enqueue-write-buffer
-                          queue xbuf type (list (+ x h)))
+                          queue xbuf type (list (+ x h))
+                          :event-wait-list
+                          (append events event-wait-list))
                          events)
                    (push (cl-enqueue-copy-buffer
-                          queue buf tmpbuf bufsize)
+                          queue buf tmpbuf bufsize
+                          :event-wait-list
+                          (append events event-wait-list))
                          events)
                    (push (funcall axpy
                                   h
                                   (third kbufs)
-                                  tmpbuf)
+                                  tmpbuf
+                                  :event-wait-list
+                                  (append events
+                                          event-wait-list))
                          events)
                    (cl-set-kernel-arg kernel 2 :value (fourth kbufs))
-                   (push (cl-enqueue-kernel queue kernel y-count)
+                   (push (cl-enqueue-kernel queue kernel y-count
+                                            :event-wait-list
+                                            (append events event-wait-list))
                          events)
                    ;; update x
                    (incf x h)
                    ;; y + h6*(k1 + 2*k2 + 2*k3 + k4)
-                   (setf events
-                         (list* (funcall axpy
-                                         h6
-                                         (first kbufs)
-                                         buf)
-                                (funcall axpy
-                                         (* 2d0 h6)
-                                         (second kbufs)
-                                         buf)
-                                (funcall axpy
-                                         (* 2d0 h6)
-                                         (third kbufs)
-                                         buf)
-                                events))
-                   (list (funcall axpy
-                                  h6
-                                  (fourth kbufs)
-                                  buf)
-                         #'eventcleanup)))
+                   (push
+                    (funcall axpy
+                             h6
+                             (first kbufs)
+                             buf
+                             :event-wait-list
+                             (append events event-wait-list))
+                    events)
+                   (push
+                    (funcall axpy
+                             (* 2d0 h6)
+                             (second kbufs)
+                             buf
+                             :event-wait-list
+                             (append events event-wait-list))
+                    events)
+                   (push
+                    (funcall axpy
+                             (* 2d0 h6)
+                             (third kbufs)
+                             buf
+                             :event-wait-list
+                             (append events event-wait-list))
+                    events)
+                   (destructuring-bind (axpyevent axpycleanup)
+                       (funcall axpy
+                                h6
+                                (fourth kbufs)
+                                buf
+                                :event-wait-list
+                                (append events event-wait-list))
+                     (list axpyevent
+                           (lambda ()
+                             (funcall axpycleanup)
+                             (eventcleanup))))))
                (cleanup ()
                  (funcall axpy-cleanup)
-                 (mapcar #'release-opencl-event
-                         events)
-                 (setf events NIL)
+                 (when events
+                   (eventcleanup))
                  (mapcar #'cl-release-mem-object
                          (list* xbuf tmpbuf kbufs))
                  (cl-release-kernel kernel)

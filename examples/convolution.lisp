@@ -38,7 +38,9 @@
     (with-opencl-context
         (context plat (list dev))
       (with-opencl-command-queue
-          (queue context dev)
+          (queue context dev
+                 :properties
+                 (list +CL-QUEUE-OUT-OF-ORDER-EXEC-MODE-ENABLE+))
         (with-opencl-cleanup
             (convolutor
              (make-opencl-convolutor queue

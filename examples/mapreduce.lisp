@@ -7,7 +7,12 @@
          (dev
           (first (cl-get-device-ids plat +CL-DEVICE-TYPE-GPU+))))
     (with-opencl-context (context plat (list dev))
-      (with-opencl-command-queue (queue context dev)
+      (with-opencl-command-queue
+          ;; This example uses out-of-order execution as a
+          ;; demonstration
+          (queue context dev
+                 :properties
+                 (list +CL-QUEUE-OUT-OF-ORDER-EXEC-MODE-ENABLE+))
         (with-opencl-cleanup
             (reducefn
              (make-opencl-reducer queue
@@ -33,7 +38,8 @@
     (with-opencl-context
         (context plat (list dev))
       (with-opencl-command-queue
-          (queue context dev)
+          (queue context dev
+                 :properties (list +CL-QUEUE-OUT-OF-ORDER-EXEC-MODE-ENABLE+))
         (with-opencl-cleanup
             (logmap
              (make-opencl-mapper queue :float

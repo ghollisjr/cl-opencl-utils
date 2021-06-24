@@ -7,7 +7,7 @@
                          &key
                            (type :float))
   "Returns (axpy cleanup) where axpy is of the form (lambda (a xbuf
-ybuf &key count)...) which sets ybuf to the value of a*x + y where a is a scalar
+ybuf &key count event-wait-list)...) which sets ybuf to the value of a*x + y where a is a scalar
 x and y are OpenCL buffers treated as vectors.  The return value of
 axpy is an event to be waited on for the completion of the OpenCL
 operation.
@@ -52,32 +52,44 @@ type is the OpenCL type to use for a, xbuf, and ybuf."
                                  :type type))
          (last-a NIL)
          (last-count NIL))
-    (labels ((axpy (a xbuf ybuf &key count)
-               (when (and a
-                          (not (equal a last-a)))
-                 (setf last-a a)
-                 (cl-enqueue-write-buffer
-                  queue abuf type (list last-a)
-                  :blocking-p t))
-               (when (and count
-                          (not (equal count last-count)))
-                 (setf last-count count)
-                 (cl-enqueue-write-buffer
-                  queue countbuf :ulong (list last-count)))
-               (when (not last-count)
-                 (setf last-count
-                       (min (floor (cl-get-mem-object-info xbuf
-                                                           +CL-MEM-SIZE+)
-                                   (foreign-type-size type))
-                            (floor (cl-get-mem-object-info ybuf
-                                                           +CL-MEM-SIZE+)
-                                   (foreign-type-size type))))
-                 (cl-enqueue-write-buffer
-                  queue countbuf :ulong (list last-count)
-                  :blocking-p t))
-               (cl-set-kernel-arg kernel 2 :value xbuf)
-               (cl-set-kernel-arg kernel 3 :value ybuf)
-               (cl-enqueue-kernel queue kernel last-count))
+    (labels ((axpy (a xbuf ybuf &key count event-wait-list)
+               (let ((events NIL))
+                 (when (and a
+                            (not (equal a last-a)))
+                   (setf last-a a)
+                   (push
+                    (cl-enqueue-write-buffer
+                     queue abuf type (list last-a)
+                     :event-wait-list event-wait-list)
+                    events))
+                 (when (and count
+                            (not (equal count last-count)))
+                   (setf last-count count)
+                   (push
+                    (cl-enqueue-write-buffer
+                     queue countbuf :ulong (list last-count)
+                     :event-wait-list event-wait-list)
+                    events))
+                 (when (not last-count)
+                   (setf last-count
+                         (min (floor (cl-get-mem-object-info xbuf
+                                                             +CL-MEM-SIZE+)
+                                     (foreign-type-size type))
+                              (floor (cl-get-mem-object-info ybuf
+                                                             +CL-MEM-SIZE+)
+                                     (foreign-type-size type))))
+                   (push
+                    (cl-enqueue-write-buffer
+                     queue countbuf :ulong (list last-count)
+                     :event-wait-list event-wait-list)
+                    events))
+                 (cl-set-kernel-arg kernel 2 :value xbuf)
+                 (cl-set-kernel-arg kernel 3 :value ybuf)
+                 (list (cl-enqueue-kernel queue kernel last-count
+                                          :event-wait-list
+                                          (append events event-wait-list))
+                       (lambda ()
+                         (mapcar #'release-opencl-event events)))))
              (cleanup ()
                (mapcar #'cl-release-mem-object
                        (list abuf countbuf))

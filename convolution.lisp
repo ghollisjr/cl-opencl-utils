@@ -24,7 +24,7 @@ rest of the the strings will be parameter values.
 ndomain is the number of samples to take from domain in order to
 perform the numerical integration.
 
-convolutor will be a function (lambda (x &key params-A params-B)...)
+convolutor will be a function (lambda (x &key params-A params-B event-wait-list)...)
 with sticky values for params-A and params-B so that they only need
 supplying when they need to be changed.  The number of parameters are
 set by the nparams-A and nparams-B for A and B respectively."
@@ -157,7 +157,7 @@ set by the nparams-A and nparams-B for A and B respectively."
          (b-kernel
           (cl-create-kernel b-program "setb"))
          (convolutor
-          (lambda (x &key params-A params-B)
+          (lambda (x &key params-A params-B event-wait-list)
             (let* ((events NIL))
               (when (or
                      ;; non-zero nparams mode
@@ -173,7 +173,8 @@ set by the nparams-A and nparams-B for A and B respectively."
                 (push (cl-enqueue-write-buffer
                        queue Aparambuf
                        type
-                       params-A)
+                       params-A
+                       :event-wait-list event-wait-list)
                       events))
               (when (or
                      ;; non-zero nparams mode
@@ -190,20 +191,33 @@ set by the nparams-A and nparams-B for A and B respectively."
                   (push (cl-enqueue-write-buffer
                          queue Bparambuf
                          type
-                         params-B)
+                         params-B
+                         :event-wait-list
+                         (append events event-wait-list))
                         events))
                 (push (cl-enqueue-kernel
                        queue b-kernel
-                       ndomain)
+                       ndomain
+                       :event-wait-list
+                       (append events
+                               event-wait-list))
                       events))
-              (push (cl-enqueue-write-buffer queue xbuf type (list x)
-                                             :blocking-p nil)
+              (push (cl-enqueue-write-buffer
+                     queue xbuf type (list x)
+                     :event-wait-list
+                     (append events
+                             event-wait-list))
                     events)
               (push (cl-enqueue-kernel
                      queue convolution-kernel
-                     ndomain)
+                     ndomain
+                     :event-wait-list
+                     (append events event-wait-list))
                     events)
-              (push (funcall reducer Rbuf)
+              (push (funcall reducer Rbuf
+                             :event-wait-list
+                             (append events
+                                     event-wait-list))
                     events)
               (first (cl-wait-and-release-events events)))))
          (cleanup

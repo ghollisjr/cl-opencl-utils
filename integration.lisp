@@ -11,7 +11,7 @@
                                  options)
   "Returns a list (integrator cleanup), where integrator is of the form
 
-(lambda (xlow xhigh &key params (ndomain (expt 10 3))...)
+(lambda (xlow xhigh &key params (ndomain (expt 10 3)) event-wait-list)...)
 
 which returns the value of the integral of a function between xlow and
 xhigh, where the function is supplied as a Lispified OpenCL expression
@@ -152,7 +152,8 @@ to use the corresponding sampling method."
                                        :type type)))
          (ndom NIL)
          (integrator
-          (lambda (xlow xhigh &key params (ndomain 1000))
+          (lambda (xlow xhigh &key params (ndomain 1000)
+                                event-wait-list)
             (let* ((events NIL))
               ;; On ndomain change, resampling needs new space.
               ;;
@@ -165,7 +166,8 @@ to use the corresponding sampling method."
                 (push (cl-enqueue-write-buffer
                        queue nbuf
                        :ulong
-                       (list ndom))
+                       (list ndom)
+                       :event-wait-list event-wait-list)
                       events)
                 (when samplebuf
                   (cl-release-mem-object samplebuf)
@@ -184,18 +186,25 @@ to use the corresponding sampling method."
                 (push (cl-enqueue-write-buffer
                        queue parambuf
                        type
-                       params)
+                       params
+                       :event-wait-list
+                       event-wait-list)
                       events))
               (push (cl-enqueue-write-buffer queue lohibuf
                                              type
                                              (list xlow xhigh)
-                                             :blocking-p nil)
+                                             :event-wait-list
+                                             event-wait-list)
                     events)
               (push (cl-enqueue-kernel
                      queue sampler-kernel
-                     ndomain)
+                     ndomain
+                     :event-wait-list
+                     (append events event-wait-list))
                     events)
-              (push (funcall reducer samplebuf)
+              (push (funcall reducer samplebuf
+                             :event-wait-list
+                             (append events event-wait-list))
                     events)
               (first (cl-wait-and-release-events events)))))
          (cleanup
@@ -350,8 +359,7 @@ the (:struct cl_complex) type uses double-precision."
          (reducer-results
           (make-opencl-reducer
            queue '(:struct cl_complex)
-           +OPENCL-COMPLEX-ADD-REXPR+
-           :zero-expr '(complex 0d0 0d0)))
+           +OPENCL-COMPLEX-ADD-REXPR+))
          (reducer (first reducer-results))
          (reducer-cleanup (second reducer-results))
          (pars NIL)
@@ -361,7 +369,8 @@ the (:struct cl_complex) type uses double-precision."
                                        :type type)))
          (ndom NIL)
          (integrator
-          (lambda (xlow xhigh &key params (ndomain 1000))
+          (lambda (xlow xhigh &key params (ndomain 1000)
+                                event-wait-list)
             (let* ((events NIL))
               ;; On ndomain change, resampling needs new space.
               ;;
@@ -374,7 +383,8 @@ the (:struct cl_complex) type uses double-precision."
                 (push (cl-enqueue-write-buffer
                        queue nbuf
                        :ulong
-                       (list ndom))
+                       (list ndom)
+                       :event-wait-list event-wait-list)
                       events)
                 (when samplebuf
                   (cl-release-mem-object samplebuf)
@@ -393,18 +403,23 @@ the (:struct cl_complex) type uses double-precision."
                 (push (cl-enqueue-write-buffer
                        queue parambuf
                        type
-                       params)
+                       params
+                       :event-wait-list event-wait-list)
                       events))
               (push (cl-enqueue-write-buffer queue lohibuf
                                              type
                                              (list xlow xhigh)
-                                             :blocking-p nil)
+                                             :event-wait-list
+                                             event-wait-list)
                     events)
               (push (cl-enqueue-kernel
                      queue sampler-kernel
-                     ndomain)
+                     ndomain
+                     :event-wait-list (append events event-wait-list))
                     events)
-              (push (funcall reducer samplebuf)
+              (push (funcall reducer samplebuf
+                             :event-wait-list
+                             (append events event-wait-list))
                     events)
               (first (cl-wait-and-release-events events)))))
          (cleanup

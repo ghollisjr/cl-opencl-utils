@@ -15,7 +15,7 @@
        options)
   "Returns a list (reducer cleanup) where reducer is of the form
 
-(lambda (buffer &key start end) ...)
+(lambda (buffer &key start end event-wait-list) ...)
 
 that will perform a reduction operation according to the input
 parameters.  buffer must an OpenCL memory object, and start and end
@@ -137,7 +137,7 @@ done using the reducer."
     (let* ((kernel
             (cl-create-kernel program "reduce"))
            (reducefn
-            (lambda (buffer &key start end)
+            (lambda (buffer &key event-wait-list start end)
               (let* ((start (if start
                                 start
                                 0))
@@ -186,7 +186,8 @@ done using the reducer."
                 (cl-set-kernel-arg kernel 3
                                    :type type
                                    :count wgsize)
-                (push (cl-enqueue-kernel queue kernel globalworksize)
+                (push (cl-enqueue-kernel queue kernel globalworksize
+                                         :event-wait-list event-wait-list)
                       events)
                 ;; loop
                 (let* ((niter (ceiling (log ngroups
@@ -215,7 +216,9 @@ done using the reducer."
                           (cl-enqueue-write-buffer queue
                                                    startendbuf
                                                    :ulong
-                                                   (list 0 n))
+                                                   (list 0 n)
+                                                   :event-wait-list
+                                                   (append events event-wait-list))
                           events)
                          (cl-set-kernel-arg kernel 0 :value buf1)
                        ;; might not actually need this, will test
@@ -224,24 +227,29 @@ done using the reducer."
                          (push
                           (cl-enqueue-kernel queue
                                              kernel
-                                             globalworksize)
+                                             globalworksize
+                                             :event-wait-list
+                                             (append events event-wait-list))
                           events)))
                   (destructuring-bind (finalevent returner)
                       (cl-enqueue-read-buffer
                        queue
                        buf2
-                       type 1)
+                       type 1
+                       :event-wait-list (append events event-wait-list))
                     (setf events (nreverse events))
                     (let* ((cleanup
                             (lambda ()
                               (loop
                                  for ev in events
                                  do
-                                   (if (listp ev)
-                                       (progn
-                                         (funcall (second ev))
-                                         (cl-release-event (first ev)))
-                                       (cl-release-event ev)))
+                                   (release-opencl-event ev)
+                                 ;; (if (listp ev)
+                                 ;;     (progn
+                                 ;;       (funcall (second ev))
+                                 ;;       (cl-release-event (first ev)))
+                                 ;;     (cl-release-event ev))
+                                   )
                               (let* ((result (elt (funcall returner) 0)))
                                 (cl-release-mem-object outbuf2)
                                 (cl-release-mem-object outbuf1)
@@ -264,7 +272,7 @@ done using the reducer."
                              options)
   "Returns a list (mapper cleanup) where mapper is of the form
 
-(lambda (in-buffers out-buffer &key params) ...)
+(lambda (in-buffers out-buffer &key params event-wait-list) ...)
 
 that will perform a map operation according to the input parameters.
 in-buffers and out-buffer must be a list of OpenCL memory objects and
@@ -379,8 +387,9 @@ done using the reducer."
                                           :type output-type
                                           :count nparams)))
            (mapfn
-            (lambda (in-buffers out-buffer &key params)
-              (let* ((in-buffer-list
+            (lambda (in-buffers out-buffer &key event-wait-list params)
+              (let* ((events nil)
+                     (in-buffer-list
                       (if (listp in-buffers)
                           in-buffers
                           (list in-buffers)))
@@ -413,16 +422,22 @@ done using the reducer."
                 (when (or (not lastn)
                           (not (equal n lastn)))
                   (setf lastn n)
-                  (cl-enqueue-write-buffer queue
-                                           nbuf
-                                           :ulong
-                                           (list lastn)
-                                           :blocking-p t))
+                  (push
+                   (cl-enqueue-write-buffer queue
+                                            nbuf
+                                            :ulong
+                                            (list lastn)
+                                            :event-wait-list
+                                            event-wait-list)
+                   events))
                 (when params
-                  (cl-enqueue-write-buffer queue paramsbuf
-                                           :output-type
-                                           params
-                                           :blocking-p t))
+                  (push
+                   (cl-enqueue-write-buffer queue paramsbuf
+                                            output-type
+                                            params
+                                            :event-wait-list
+                                            (append events event-wait-list))
+                   events))
                 ;; set kernel arguments
                 (cl-set-kernel-arg kernel 2 :value out-buffer)
                 (loop
@@ -431,9 +446,15 @@ done using the reducer."
                    do
                      (cl-set-kernel-arg kernel i :value inbuf))
                 (setf event
-                      (cl-enqueue-ndrange-kernel queue kernel
-                                                 (list globalworksize)
-                                                 (list wgsize)))
+                      (list
+                       (cl-enqueue-ndrange-kernel queue kernel
+                                                  (list globalworksize)
+                                                  (list wgsize)
+                                                  :event-wait-list
+                                                  (append events event-wait-list))
+                       (lambda ()
+                         (loop for ev in events
+                            do (release-opencl-event ev)))))
                 event)))
            (cleanup
             (lambda ()

@@ -15,7 +15,9 @@
   (let* ((plat (first (cl-get-platform-ids)))
          (dev (first (cl-get-device-ids plat +CL-DEVICE-TYPE-ALL+)))
          (context (cl-create-context plat (list dev)))
-         (queue (cl-create-command-queue context dev)))
+         (queue (cl-create-command-queue context dev
+                                         :properties
+                                         (list +CL-QUEUE-OUT-OF-ORDER-EXEC-MODE-ENABLE+))))
     (destructuring-bind (integrator cleanup)
         (make-opencl-integrator queue
                                 (lambda (x)
@@ -87,7 +89,9 @@
   (let* ((plat (first (cl-get-platform-ids)))
          (dev (first (cl-get-device-ids plat +CL-DEVICE-TYPE-ALL+)))
          (context (cl-create-context plat (list dev)))
-         (queue (cl-create-command-queue context dev)))
+         (queue (cl-create-command-queue context dev
+                                         :properties
+                                         (list +CL-QUEUE-OUT-OF-ORDER-EXEC-MODE-ENABLE+))))
     (destructuring-bind (integrator cleanup)
         (make-opencl-complex-integrator
          queue

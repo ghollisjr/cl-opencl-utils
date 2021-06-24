@@ -31,7 +31,6 @@
       (let* ((result
               (first
                (last
-
                 (cl-wait-and-release-events
                  (list (funcall axpy a xbuf ybuf)
                        (cl-enqueue-read-buffer
