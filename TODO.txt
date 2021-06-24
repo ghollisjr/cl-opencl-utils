@@ -1,10 +1,14 @@
++ Modify RK4 so that multiple kernels can be run on the same inputs in
+  parallel.  It's more efficient to have kernels submitted in parallel
+  than to have one kernel conditionally branch during execution.
+
 + Add handlers/restarts for foreign memory cleanup.  At the moment
   OpenCL memory is easily leaked due to encountering an error, so some
   tools that assist in cleaning up memory would be useful.
 
-+ Add suite of complex math functions, including libcerf
+- Add suite of complex math functions, including libcerf
 
-+ Add support for complex integration
+- Add support for complex integration
 
 - Add a midpoint integrator based on make-opencl-function-sampler and
   make-opencl-reducer.  Data should be generated per-job and then
