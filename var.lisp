@@ -16,10 +16,29 @@
       (format s " = {~{~a~^,~}}" (mapcar #'clc inits)))
     (format s ";")))
 
+;; Function pointer declaration
+(defclc varfpointer (name return-type argument-types
+                          &optional value)
+  (with-output-to-string (s)
+    (format s "~a (*~a)(~{~a~^,~})"
+            (clc return-type)
+            (clc name)
+            (mapcar #'clc argument-types))
+    (when value
+      (format s " = (~a)" (clc value)))
+    (format s ";")))
+
 ;; Returns a type which requires many type-tokens
 (defclc type (&rest type-tokens)
   (format nil "~{~a~^ ~}"
           (mapcar #'clc type-tokens)))
+
+(defclc fpointer (return-type
+                  argument-types)
+  (with-output-to-string (s)
+    (format s "~a (*)(~{~a~^,~})"
+            (clc return-type)
+            (mapcar #'clc argument-types))))
 
 ;; OpenCL __global, __constant, __local, and __private
 (defclc global (type)
@@ -39,6 +58,8 @@
 ;; Returns the pointer type for a given type
 (defclc pointer (type)
   (format nil "~a*" (clc type)))
+
+;; Returns
 
 ;; Returns address of variable
 (defclc address (var)

@@ -78,12 +78,14 @@
    :defclcglobalvar
    :var
    :vararray
+   :varfpointer
    :global
    :constant
    :local
    :private
    :const
    :pointer
+   :fpointer
    :address
    :value
    ;; control
