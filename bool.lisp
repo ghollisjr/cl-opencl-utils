@@ -18,3 +18,11 @@
 (defclc zerop (expression)
   (format nil "((~a) == 0)"
           (clc expression)))
+
+(defclc plusp (expression)
+  (format nil "((~a) > 0)"
+          (clc expression)))
+
+(defclc minusp (expression)
+  (format nil "((~a) < 0)"
+          (clc expression)))
