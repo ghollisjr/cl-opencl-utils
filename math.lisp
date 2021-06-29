@@ -2,7 +2,7 @@
 
 (defclc + (&rest forms)
   (with-output-to-string (out)
-    (format out "(~{~a~^+~})" (mapcar #'clc forms))))
+    (format out "(~{(~a)~^+~})" (mapcar #'clc forms))))
 
 (defclc - (&rest forms)
   (with-output-to-string (out)
@@ -12,12 +12,12 @@
 
 (defclc * (&rest forms)
   (with-output-to-string (out)
-    (format out "(~{~a~^*~})" (mapcar #'clc forms))))
+    (format out "(~{(~a)~^*~})" (mapcar #'clc forms))))
 
 ;; Note: Not valid for single argument, only works with two or more arguments
 (defclc / (&rest forms)
   (with-output-to-string (out)
-    (format out "(~{~a~^/~})" (mapcar #'clc forms))))
+    (format out "(~{(~a)~^/~})" (mapcar #'clc forms))))
 
 (defclc incf (var &optional amount)
   (if amount
