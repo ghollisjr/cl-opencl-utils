@@ -77,7 +77,7 @@
 ;; Assignment (didn't know exactly where to place this)
 (defclc setf (place value)
   (with-output-to-string (out)
-    (format out "~a = ~a"
+    (format out "(~a) = (~a)"
             (clc place)
             (clc value))))
 
@@ -87,6 +87,9 @@
     (format out "((~a) ~a)"
             (clc type)
             (clc val))))
+
+;; technically need a function pointer typecast for completeness,
+;; might add it later
 
 ;; typedefs
 ;; (defclc typedef (
