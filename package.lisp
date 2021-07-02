@@ -151,6 +151,8 @@
    ;; compile
    :program-source-from-forms-fn
    :program-source-from-forms
+   :program-source-from-functions-fn
+   :program-source-from-functions
    :program-source-from-kernels-fn
    :program-source-from-kernels
    ;;; OpenCL C functions

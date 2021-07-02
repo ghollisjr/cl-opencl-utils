@@ -19,12 +19,12 @@
 (defclcglobalvar
     (var GV_PCG32_MULTIPLIER
          (constant :ulong)
-         "6364136223846793005u"))
+         "6364136223846793005ul"))
 
 (defclcglobalvar
     (var GV_PCG32_INCREMENT
          (constant :ulong)
-         "1442695040888963407u"))
+         "1442695040888963407ul"))
 
 (defclcfun pcg32_rotr32 :uint
     ((var x :uint)
