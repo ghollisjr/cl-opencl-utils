@@ -32,7 +32,7 @@
       (with-opencl-command-queue (queue context dev)
         (with-opencl-cleanup
             (stepper
-             (make-opencl-rk4 queue 'rk4kernel 2 x0
+             (make-opencl-rk4 queue '(rk4kernel) 2 x0
                               :type :double))
           (let* ((ybuf (cl-create-buffer context
                                          :type :double

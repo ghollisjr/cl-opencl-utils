@@ -1,6 +1,6 @@
 (in-package :cl-opencl-utils)
 
-(defun make-opencl-rk4 (queue dy/dx-kernel y-count x0
+(defun make-opencl-rk4 (queue dy/dx-kernels y-count x0
                         &key
                           (type :float))
   "Returns (stepper cleanup) where stepper is of the form (lambda (buf
@@ -12,7 +12,8 @@ of y(x + x-delta).
 x-delta is a sticky parameter that retains its value between calls
 until changed.
 
-fxy-kernel should be a kernel of the form
+Each element of dy/dx-kernels should the symbol name of a kernel or a
+kernel of the form
 
 (kernel dy/dx-kernel
   ((var x (global (pointer type)))
@@ -49,27 +50,42 @@ kernel is called."
          (xbuf (cl-create-buffer context
                                  :type type
                                  :data (list x0)))
-         (callername (string (gensym "RK4CALLER")))
-         (dx/dy-kernel-name (if (listp dy/dx-kernel)
-                                (second dy/dx-kernel)
-                                dy/dx-kernel))
-         (caller-source
-          `(kernel ,callername
-                   ((var x (global (pointer ,type)))
-                    (var y (global (pointer ,type)))
-                    (var dy (global (pointer ,type))))
-                   (var gid (const :ulong)
-                        (get-global-id 0))
-                   (var ycount (const :ulong)
-                        ,y-count)
-                   (when (< gid ycount)
-                     (,dx/dy-kernel-name x y dy))))
+         (callernames
+          (loop
+             for k in dy/dx-kernels
+             collecting (string (gensym "RK4CALLER"))))
+         (dy/dx-kernel-names
+          (loop
+             for dy/dx-kernel in dy/dx-kernels
+             collecting (if (listp dy/dx-kernel)
+                            (second dy/dx-kernel)
+                            dy/dx-kernel)))
+         (caller-sources
+          (loop
+             for dy/dx-kernel-name in dy/dx-kernel-names
+             for callername in callernames
+             collecting
+               `(kernel ,callername
+                        ((var x (global (pointer ,type)))
+                         (var y (global (pointer ,type)))
+                         (var dy (global (pointer ,type))))
+                        (var gid (const :ulong)
+                             (get-global-id 0))
+                        (var ycount (const :ulong)
+                             ,y-count)
+                        (when (< gid ycount)
+                          (,dy/dx-kernel-name x y dy)))))
          (kernel-source
-          (if (listp dy/dx-kernel)
-              `(concat
-                ,dy/dx-kernel
-                ,caller-source)
-              caller-source))
+          `(concat
+            ,@(loop
+                 for dy/dx-kernel in dy/dx-kernels
+                 for caller-source in caller-sources
+                 collecting
+                   (if (listp dy/dx-kernel)
+                       `(concat
+                         ,dy/dx-kernel
+                         ,caller-source)
+                       caller-source))))
          (program
           (let* ((p (cl-create-program-with-source
                      context
@@ -77,7 +93,10 @@ kernel is called."
             (cl-build-program-with-log p (list dev))
             p))
          ;; kernel to compute dy/dx(x,y)
-         (kernel (cl-create-kernel program callername))
+         (kernels
+          (loop
+             for callername in callernames
+             collecting (cl-create-kernel program callername)))
          (events NIL))
     (destructuring-bind (axpy axpy-cleanup)
         (make-opencl-axpy queue :type type)
@@ -100,12 +119,16 @@ kernel is called."
                           queue xbuf type (list x)
                           :event-wait-list event-wait-list)
                          events)
-                   (cl-set-kernel-arg kernel 1 :value buf)
-                   (cl-set-kernel-arg kernel 2 :value (first kbufs))
-                   (push (cl-enqueue-kernel queue kernel y-count
-                                            :event-wait-list
-                                            (append events event-wait-list))
-                         events)
+                   (let* ((evs (copy-list events)))
+                     (loop
+                        for kernel in kernels
+                        do 
+                          (cl-set-kernel-arg kernel 1 :value buf)
+                          (cl-set-kernel-arg kernel 2 :value (first kbufs))
+                          (push (cl-enqueue-kernel queue kernel y-count
+                                                   :event-wait-list
+                                                   (append evs event-wait-list))
+                                events)))
                    ;; k2 = dy/dx(x + h/2, y + k1*h/2)
                    (push (cl-enqueue-write-buffer
                           queue xbuf type (list (+ x h2))
@@ -123,13 +146,17 @@ kernel is called."
                                   :event-wait-list
                                   (append events event-wait-list))
                          events)
-                   (cl-set-kernel-arg kernel 1 :value tmpbuf)
-                   (cl-set-kernel-arg kernel 2 :value (second kbufs))
-                   (push (cl-enqueue-kernel queue kernel y-count
-                                            :event-wait-list
-                                            (append events
-                                                    event-wait-list))
-                         events)
+                   (let* ((evs (copy-list events)))
+                     (loop
+                        for kernel in kernels
+                        do 
+                          (cl-set-kernel-arg kernel 1 :value tmpbuf)
+                          (cl-set-kernel-arg kernel 2 :value (second kbufs))
+                          (push (cl-enqueue-kernel queue kernel y-count
+                                                   :event-wait-list
+                                                   (append evs
+                                                           event-wait-list))
+                                events)))
                    ;; k3 = dy/dx(x + h/2, y + k2*h/2)
                    (push (cl-enqueue-copy-buffer
                           queue buf tmpbuf bufsize
@@ -143,12 +170,16 @@ kernel is called."
                                   :event-wait-list
                                   (append events event-wait-list))
                          events)
-                   (cl-set-kernel-arg kernel 2 :value (third kbufs))
-                   (push (cl-enqueue-kernel queue kernel y-count
-                                            :event-wait-list
-                                            (append events
-                                                    event-wait-list))
-                         events)
+                   (let* ((evs (copy-list events)))
+                     (loop
+                        for kernel in kernels
+                        do 
+                          (cl-set-kernel-arg kernel 2 :value (third kbufs))
+                          (push (cl-enqueue-kernel queue kernel y-count
+                                                   :event-wait-list
+                                                   (append evs
+                                                           event-wait-list))
+                                events)))
                    ;; k4
                    (push (cl-enqueue-write-buffer
                           queue xbuf type (list (+ x h))
@@ -168,11 +199,15 @@ kernel is called."
                                   (append events
                                           event-wait-list))
                          events)
-                   (cl-set-kernel-arg kernel 2 :value (fourth kbufs))
-                   (push (cl-enqueue-kernel queue kernel y-count
-                                            :event-wait-list
-                                            (append events event-wait-list))
-                         events)
+                   (let* ((evs (copy-list events)))
+                     (loop
+                        for kernel in kernels
+                        do 
+                          (cl-set-kernel-arg kernel 2 :value (fourth kbufs))
+                          (push (cl-enqueue-kernel queue kernel y-count
+                                                   :event-wait-list
+                                                   (append evs event-wait-list))
+                                events)))
                    ;; update x
                    (incf x h)
                    ;; y + h6*(k1 + 2*k2 + 2*k3 + k4)
@@ -217,7 +252,12 @@ kernel is called."
                    (eventcleanup))
                  (mapcar #'cl-release-mem-object
                          (list* xbuf tmpbuf kbufs))
-                 (cl-release-kernel kernel)
+                 (loop
+                    for kernel in kernels
+                    do 
+                      (cl-release-kernel kernel))
                  (cl-release-program program)))
-        (cl-set-kernel-arg kernel 0 :value xbuf)
+        (loop
+           for kernel in kernels
+           do (cl-set-kernel-arg kernel 0 :value xbuf))
         (list #'stepper #'cleanup)))))
