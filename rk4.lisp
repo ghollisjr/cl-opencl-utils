@@ -2,12 +2,20 @@
 
 (defun make-opencl-rk4 (queue dy/dx-kernels y-count x0
                         &key
+                          (nparams 0)
                           (type :float))
   "Returns (stepper cleanup) where stepper is of the form (lambda (buf
-&key x-delta event-wait-list) ...) and has the effect of stepping the differential
+&key x-delta event-wait-list params) ...) and has the effect of stepping the differential
 equation solution for y(x) forward by x-delta using the RK4 algorithm.
 buf will be modified by this, as it will contain the estimated value
 of y(x + x-delta).
+
+params is an optional argument supplying values to be placed in the
+last argument to the kernel, either as a list of data to transfer to
+the device or a buffer ID for data already on the device.  If
+parameters will be supplied, set nparams to the total number of
+parameters required.  It is up to the user to interpret the parameters
+and make use of them in the various kernels supplied as arguments.
 
 x-delta is a sticky parameter that retains its value between calls
 until changed.
@@ -18,19 +26,17 @@ kernel of the form
 (kernel dy/dx-kernel
   ((var x (global (pointer type)))
    (var y (global (pointer type)))
-   (var dy (global (pointer type))))
+   (var dy (global (pointer type)))
+   (var params (global (pointer type))))
  ...)
 
 which has the effect of setting dy to the value of dy/dx given x and
 y.  x will always be a single value, but there are y-count elements
 available in y.
 
-It is also possible to pass the symbol name of a kernel defined with
-defclckernel as the argument to dy/dx-kernel.
-
-Note that dy/dx-kernel does not need to check (get-global-id 0) to see
-if it is below y-count, as this is automatically checked before the
-kernel is called."
+Note that each dy/dx-kernel does not need to check (get-global-id 0)
+to see if it is below y-count, as this is automatically checked before
+the kernel is called."
   (let* ((context (cl-get-command-queue-info
                    queue +CL-QUEUE-CONTEXT+))
          (dev (cl-get-command-queue-info
@@ -44,6 +50,10 @@ kernel is called."
                      (cl-create-buffer context
                                        :type type
                                        :count y-count)))
+         (pbuf (when (plusp nparams)
+                 (cl-create-buffer context
+                                   :type type
+                                   :count nparams)))
          (bufsize (cl-get-mem-object-info (first kbufs)
                                           +CL-MEM-SIZE+))
          (x x0)
@@ -68,13 +78,14 @@ kernel is called."
                `(kernel ,callername
                         ((var x (global (pointer ,type)))
                          (var y (global (pointer ,type)))
-                         (var dy (global (pointer ,type))))
+                         (var dy (global (pointer ,type)))
+                         (var params (global (pointer ,type))))
                         (var gid (const :ulong)
                              (get-global-id 0))
                         (var ycount (const :ulong)
                              ,y-count)
                         (when (< gid ycount)
-                          (,dy/dx-kernel-name x y dy)))))
+                          (,dy/dx-kernel-name x y dy params)))))
          (kernel-source
           `(concat
             ,@(loop
@@ -97,16 +108,37 @@ kernel is called."
           (loop
              for callername in callernames
              collecting (cl-create-kernel program callername)))
-         (events NIL))
+         (events NIL)
+         (lastparams NIL))
     (destructuring-bind (axpy axpy-cleanup)
         (make-opencl-axpy queue :type type)
       (labels ((eventcleanup ()
                  (mapcar #'release-opencl-event events)
                  (setf events NIL))
-               (stepper (buf &key x-delta event-wait-list)
+               (stepper (buf &key x-delta event-wait-list params)
                  (let* ((h x-delta)
                         (h2 (/ x-delta 2d0))
                         (h6 (/ x-delta 6d0)))
+                   ;; optionally adjust parameters
+                   (when (and params
+                              (not (equal params lastparams)))
+                     (if (atom params)
+                         ;; buffer supplied
+                         (loop
+                            for kernel in kernels
+                            do
+                              (cl-set-kernel-arg kernel 3 :value params))
+                         ;; data list supplied
+                         (progn
+                           (loop
+                              for kernel in kernels
+                              do
+                                (cl-set-kernel-arg kernel 3 :value pbuf))
+                           (push (cl-enqueue-write-buffer
+                                  queue pbuf type
+                                  (setf lastparams params)
+                                  :event-wait-list event-wait-list)
+                                 events))))
                    ;; copy y into kbufs
                    (loop
                       for kbuf in kbufs
@@ -252,6 +284,8 @@ kernel is called."
                    (eventcleanup))
                  (mapcar #'cl-release-mem-object
                          (list* xbuf tmpbuf kbufs))
+                 (when pbuf
+                   (cl-release-mem-object pbuf))
                  (loop
                     for kernel in kernels
                     do 
@@ -259,5 +293,7 @@ kernel is called."
                  (cl-release-program program)))
         (loop
            for kernel in kernels
-           do (cl-set-kernel-arg kernel 0 :value xbuf))
+           do
+             (cl-set-kernel-arg kernel 0 :value xbuf)
+             (cl-set-kernel-arg kernel 3 :value pbuf))
         (list #'stepper #'cleanup)))))

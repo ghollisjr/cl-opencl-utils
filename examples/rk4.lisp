@@ -6,7 +6,8 @@
 (defclckernel rk4kernel
     ((var x (global (pointer :double)))
      (var y (global (pointer :double)))
-     (var dy (global (pointer :double))))
+     (var dy (global (pointer :double)))
+     (var params (global (pointer :double))))
   (var gid (const :ulong)
        (get-global-id 0))
   (case gid
@@ -57,7 +58,7 @@
             (list (nreverse y1)
                   (nreverse y2))))))))
 
-;; ;;;; A more involved example where coupled pendulums
+;;;; A more involved example where coupled pendulums
 ;; (defclckernel coupled_pendulums_dydx
 ;;     ((var n 
 

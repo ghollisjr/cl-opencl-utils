@@ -1,6 +1,25 @@
-+ Modify RK4 so that multiple kernels can be run on the same inputs in
-  parallel.  It's more efficient to have kernels submitted in parallel
-  than to have one kernel conditionally branch during execution.
++ Add support for either parameter lists or single buffer arguments to
+  all "make-opencl-*"-generated functions so that either data supplied
+  from Lisp or data already on the OpenCL device can be used by OpenCL
+  kernels as supplementary arguments.  This could be easily
+  accomplished in most functions by setting the kernel argument
+  instead of queuing a buffer write event.
+
+  UPDATE: Added support to rk4 but need to test and add to others.
+
+  UPDATE: Parameter support needs to be standardized.  At the moment,
+  different systems expect different arguments for parameters.  E.g.,
+  make-opencl-convolutor expects to supply parameters as distinct
+  arguments rather than as a single "param" argument or something
+  along those lines.  make-opencl-rk4 on the other hand uses kernels
+  with a "param" argument.  It would make more sense to use a standard
+  "param" argument method like make-opencl-rk4 uses.
+
++ Add macros to assist in standardized argument definitions,
+  e.g. sticky arguments and the list-or-buffer parameter arguments
+  mentioned in another to-do item.
+
+  Ideas: 
 
 + Add handlers/restarts for foreign memory cleanup.  At the moment
   OpenCL memory is easily leaked due to encountering an error, so some
@@ -27,3 +46,9 @@
   This includes adding event-wait-list arguments to the utilities and
   any functions they generate where such arguments would be
   appropriate.
+
+- Modify RK4 so that multiple kernels can be run on the same inputs in
+  parallel.  It's more efficient to have kernels submitted in parallel
+  than to have one kernel conditionally branch during execution.
+
+- Add parameter support to RK4 kernels
