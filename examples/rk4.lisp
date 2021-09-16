@@ -33,8 +33,8 @@
 ;;;; differential equations by simply defining variables and adding
 ;;;; new equations in an analogous way, e.g.:
 ;;;;
-;;;; 1. du^2/dx = u + dv/dx,
-;;;; 2. dv^2/dx = v - du/dx
+;;;; 1. d^2 u/dx = u + dv/dx,
+;;;; 2. d^2 v/dx = v - du/dx
 ;;;; ==> y[0] = u, y[1] = v, y[2] = du/dx, y[3] = dv/dx:
 ;;;; 1. dy[0]/dx = y[2]
 ;;;; 2. dy[1]/dx = y[3]
