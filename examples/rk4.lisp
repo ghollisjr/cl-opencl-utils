@@ -2,6 +2,12 @@
 (in-package :cl-opencl-utils)
 
 ;;;; RK4 algorithm example
+;;;;
+;;;; This example uses a vector-valued y(x) to solve two ODEs
+;;;; simultaneously:
+;;;;
+;;;; 1. dy/dx = y (solution: y(x) = exp(x) + constant)
+;;;; 2. dy/dx = x (solution: y(x) = x^2/2 + constant)
 
 (defclckernel rk4kernel
     ((var x (global (pointer :double)))
@@ -11,11 +17,11 @@
   (var gid (const :ulong)
        (get-global-id 0))
   (case gid
-    ;; dy/dy = y
+    ;; 1. dy/dx = y
     (0 (setf (aref dy gid)
              (aref y gid))
        (break))
-    ;; dy/dx = x
+    ;; 2. dy/dx = x
     (1 (setf (aref dy gid)
              (value x))
        (break))))
