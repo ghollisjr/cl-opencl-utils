@@ -8,6 +8,18 @@
 ;;;;
 ;;;; 1. dy/dx = y (solution: y(x) = exp(x) + constant)
 ;;;; 2. dy/dx = x (solution: y(x) = x^2/2 + constant)
+;;;;
+;;;; You can use this RK4 solver to solve higher order systems of many
+;;;; equations as well, and for efficiency it is recommended to define
+;;;; and use kernels in such a way as to minimize the amount of
+;;;; branching.  This example is not scalable due to the branch
+;;;; statement, but is simple.  A better version of this example would
+;;;; have two kernels, one for equation 1 and one for equation 2, with
+;;;; no branching but rather a partitioned global ID space.  It is
+;;;; with this in mind that the RK4 utility function was built to
+;;;; support a list of kernels as input rather than a single kernel.
+;;;; This makes it possible to easily batch-submit OpenCL jobs that
+;;;; e.g. run simulations of heterogenous physical systems.
 
 (defclckernel rk4kernel
     ((var x (global (pointer :double)))
