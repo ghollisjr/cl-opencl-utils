@@ -20,6 +20,26 @@
 ;;;; support a list of kernels as input rather than a single kernel.
 ;;;; This makes it possible to easily batch-submit OpenCL jobs that
 ;;;; e.g. run simulations of heterogenous physical systems.
+;;;;
+;;;; To solve higher-order systems, simply use vector-valued functions
+;;;; with a clever choice of additional equations, e.g.:
+;;;;
+;;;; d^2 y/dx^2 = y + x
+;;;; ==> y[0] = y, y[1] = x:
+;;;; 1. dy[0]/dx = y[1]
+;;;; 2. dy[1]/dx = y[0] + x
+;;;;
+;;;; This technique can be applied to higher-order coupled
+;;;; differential equations by simply defining variables and adding
+;;;; new equations in an analogous way, e.g.:
+;;;;
+;;;; 1. du^2/dx = u + dv/dx,
+;;;; 2. dv^2/dx = v - du/dx
+;;;; ==> y[0] = u, y[1] = v, y[2] = du/dx, y[3] = dv/dx:
+;;;; 1. dy[0]/dx = y[2]
+;;;; 2. dy[1]/dx = y[3]
+;;;; 2. dy[2]/dx = y[0] + y[3]
+;;;; 3. dy[3]/dx = y[1] - y[2]
 
 (defclckernel rk4kernel
     ((var x (global (pointer :double)))
