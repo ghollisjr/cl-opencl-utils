@@ -9,7 +9,7 @@
 ;;;; 1. dy/dx = y (solution: y(x) = exp(x) + constant)
 ;;;; 2. dy/dx = x (solution: y(x) = x^2/2 + constant)
 ;;;;
-;;;; You can use this RK4 solver to solve higher order systems of many
+;;;; You can use the RK4 solver to solve higher order systems of many
 ;;;; equations as well, and for efficiency it is recommended to define
 ;;;; and use kernels in such a way as to minimize the amount of
 ;;;; branching.  This example is not scalable due to the branch
