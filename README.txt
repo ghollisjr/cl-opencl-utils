@@ -181,6 +181,28 @@ The Lispified OpenCL C language follows a few rules:
     examples you can change the package of any of the slot names and
     the same OpenCL C code will result.
 
+    To easily support CFFI-Lisp translation, you can use the :class
+    keyword during struct definition and define methods for
+    translate-from-foreign-memory etc.:
+
+    (defclcstruct (mystruct :class mystruct)
+     (:x :double)
+     (:y :int))
+
+    (defmethod translate-from-foreign (pointer (type mystruct))
+      (list :x (foreign-slot-value pointer '(:struct mystruct) :x)
+            :y (foreign-slot-value pointer '(:struct mystruct) :y)))
+
+    ;; example usage:
+    (convert-from-foreign some-cffi-pointer '(:struct mystruct))
+    ==> (list :x some-x-value :y some-y-value)
+
+    See
+
+    https://www.common-lisp.net/project/cffi/manual/html_node/Foreign-Type-Translators.html
+
+    for more information on defining CFFI-Lisp translation methods.
+
 13. Macros can be defined with defclcmacro:
 
     (defclcmacro square (x)
