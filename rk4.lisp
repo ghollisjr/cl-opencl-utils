@@ -1,11 +1,12 @@
 (in-package :cl-opencl-utils)
 
-(defun make-opencl-rk4 (queue dy/dx-kernels y-count x0
+(defun make-opencl-rk4 (queue dy/dx-kernels y-count
                         &key
+                          x0
                           (nparams 0)
                           (type :float))
   "Returns (stepper cleanup) where stepper is of the form (lambda (buf
-&key x-delta event-wait-list params) ...) and has the effect of stepping the differential
+&key x-delta event-wait-list params x0) ...) and has the effect of stepping the differential
 equation solution for y(x) forward by x-delta using the RK4 algorithm.
 buf will be modified by this, as it will contain the estimated value
 of y(x + x-delta).
@@ -19,6 +20,16 @@ and make use of them in the various kernels supplied as arguments.
 
 x-delta is a sticky parameter that retains its value between calls
 until changed.
+
+x0 when set to non-NIL will manually set the x0 value before starting
+another iteration of the RK4 algorithm.  This is useful for reusing an
+existing RK4 stepper starting at a different place on the x-axis but
+for the same differential equation.  Make sure to set the values of
+the supplied buffer to the proper initial conditions prior to calling
+the stepper function.
+
+The x0 argument supplied to make-opencl-rk4 is automatically set to
+either 0f0 or 0d0 depending on the value of type.
 
 Each element of dy/dx-kernels should the symbol name of a kernel or a
 kernel of the form
@@ -37,7 +48,11 @@ available in y.
 Note that each dy/dx-kernel does not need to check (get-global-id 0)
 to see if it is below y-count, as this is automatically checked before
 the kernel is called."
-  (let* ((context (cl-get-command-queue-info
+  (let* ((x0 (cond
+               (x0 x0)
+               ((eq type :float) 0f0)
+               (t 0d0)))
+         (context (cl-get-command-queue-info
                    queue +CL-QUEUE-CONTEXT+))
          (dev (cl-get-command-queue-info
                queue +CL-QUEUE-DEVICE+))
@@ -115,7 +130,16 @@ the kernel is called."
       (labels ((eventcleanup ()
                  (mapcar #'release-opencl-event events)
                  (setf events NIL))
-               (stepper (buf &key x-delta event-wait-list params)
+               (stepper (buf &key x-delta event-wait-list params x0)
+                 ;; possibly adjust x
+                 (when x0
+                   (push (cl-enqueue-write-buffer
+                          queue
+                          xbuf
+                          type
+                          (list x0)
+                          :event-wait-list event-wait-list)
+                         events))
                  (let* ((h x-delta)
                         (h2 (/ x-delta 2d0))
                         (h6 (/ x-delta 6d0)))
