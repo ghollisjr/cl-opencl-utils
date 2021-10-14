@@ -21,12 +21,16 @@
 (defmacro defclcstruct (sname &body slots)
   "Defines both a CFFI struct and an analogous struct available to
 OpenCL C."
-  `(progn
-     (defcstruct ,sname ,@slots)
-     (setf (gethash ',sname *clc-structs*)
-           ',(loop
-                for s in slots
-                collecting s))))
+  (let* ((name (gensym "name")))
+    `(progn
+       (defcstruct ,sname ,@slots)
+       (let* ((,name (if (listp ',sname)
+                         (first ',sname)
+                         ',sname)))
+         (setf (gethash ,name *clc-structs*)
+               ',(loop
+                    for s in slots
+                    collecting s))))))
 
 (defmacro defclcstruct-no-cffi (sname &body slots)
   "Defines struct available to OpenCL C, but no CFFI type."
@@ -83,18 +87,19 @@ OpenCL C."
   (let* ((slotdefs (gethash structsym *clc-structs*)))
     `(defstruct ,structsym
        ,@(loop
-            for (name type &rest inits) in slotdefs
+            for slotdef in slotdefs
             collecting
-              (cond
-                ((atom type)
-                 `(var ,name ,type ,@inits))
-                ((listp type)
-                 (cond
-                   ;; handle arrays
-                   ((eq (first type)
-                        :array)
-                    (destructuring-bind (element-type &rest dimensions)
-                        (rest type)
-                      `(vararray ,name ,element-type ,dimensions ,@inits)))
-                   (t
-                    `(var ,name ,type ,@inits)))))))))
+              (destructuring-bind (name type &rest inits) slotdef
+                (cond
+                  ((atom type)
+                   `(var ,name ,type ,@inits))
+                  ((listp type)
+                   (cond
+                     ;; handle arrays
+                     ((eq (first type)
+                          :array)
+                      (destructuring-bind (element-type &rest dimensions)
+                          (rest type)
+                        `(vararray ,name ,element-type ,dimensions ,@inits)))
+                     (t
+                      `(var ,name ,type ,@inits))))))))))

@@ -141,8 +141,12 @@ the kernel is called."
                           :event-wait-list event-wait-list)
                          events))
                  (let* ((h x-delta)
-                        (h2 (/ x-delta 2d0))
-                        (h6 (/ x-delta 6d0)))
+                        (h2 (if (eq type :float)
+                                (/ x-delta 2f0)
+                                (/ x-delta 2d0)))
+                        (h6 (if (eq type :float)
+                                (/ x-delta 6f0)
+                                (/ x-delta 6d0))))
                    ;; optionally adjust parameters
                    (when (and params
                               (not (equal params lastparams)))
@@ -277,7 +281,10 @@ the kernel is called."
                     events)
                    (push
                     (funcall axpy
-                             (* 2d0 h6)
+                             (* (if (eq type :float)
+                                    2f0
+                                    2d0)
+                                h6)
                              (second kbufs)
                              buf
                              :event-wait-list
@@ -285,7 +292,10 @@ the kernel is called."
                     events)
                    (push
                     (funcall axpy
-                             (* 2d0 h6)
+                             (* (if (eq type :float)
+                                    2f0
+                                    2d0)
+                                h6)
                              (third kbufs)
                              buf
                              :event-wait-list
