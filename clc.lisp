@@ -1,7 +1,5 @@
 (in-package :cl-opencl-utils)
 
-(declaim (optimize (debug 3)))
-
 ;;;; OpenCL Lispified C System
 ;;;;
 ;;;; This system provides the ability to use a Lisp-like syntax for
