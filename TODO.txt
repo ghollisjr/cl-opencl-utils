@@ -15,6 +15,13 @@
   with a "param" argument.  It would make more sense to use a standard
   "param" argument method like make-opencl-rk4 uses.
 
+  UPDATE: Special not should be made for parameter handling that
+  either 1. nparams + list of parameters, or 2. parameter buffer
+  should be used.  I.e., if you want to use a buffer, don't worry
+  about nparams, but if you want to use a list of parameters, you must
+  supply the amount of parameters needed to the make-opencl-X
+  function.
+
 + Add macros to assist in standardized argument definitions,
   e.g. sticky arguments and the list-or-buffer parameter arguments
   mentioned in another to-do item.
