@@ -1,3 +1,11 @@
++ Find source of possible bug using POCL 1.7 and #'reduce-example from
+  examples/mapreduce.lisp.  On an old Sony Vaio laptop, this causes
+  the SBCL image integrity to be compromised and hangs until the
+  process is killed.  #'map-example does not crash in the same way.
+  Need to test these examples on multiple systems running POCL 1.7 to
+  see if it's a code issue, POCL issue in general, or just an issue on
+  a single system.
+
 + Add support for either parameter lists or single buffer arguments to
   all "make-opencl-*"-generated functions so that either data supplied
   from Lisp or data already on the OpenCL device can be used by OpenCL

@@ -5,7 +5,7 @@
   (let* ((plat
           (first (cl-get-platform-ids)))
          (dev
-          (first (cl-get-device-ids plat +CL-DEVICE-TYPE-GPU+))))
+          (first (cl-get-device-ids plat +CL-DEVICE-TYPE-ALL+))))
     (with-opencl-context (context plat (list dev))
       (with-opencl-command-queue
           ;; This example uses out-of-order execution as a
@@ -34,7 +34,7 @@
   (let* ((plat (first (cl-get-platform-ids)))
          (dev (first (cl-get-device-ids
                       plat
-                      +CL-DEVICE-TYPE-GPU+))))
+                      +CL-DEVICE-TYPE-ALL+))))
     (with-opencl-context
         (context plat (list dev))
       (with-opencl-command-queue
@@ -74,7 +74,7 @@
   (let* ((plat (first (cl-get-platform-ids)))
          (dev (first (cl-get-device-ids
                       plat
-                      +CL-DEVICE-TYPE-GPU+)))
+                      +CL-DEVICE-TYPE-ALL+)))
          (context
           (cl-create-context plat (list dev)))
          (queue
