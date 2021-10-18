@@ -1,3 +1,8 @@
++ While testing POCL 1.8 on the Core i7 system, I noticed that
+  repeatedly calling #'reduce-example using POCL leads to gradual
+  device memory use increase, whereas doing the same using an NVIDIA
+  platform does not lead to increasing device memory usage.
+
 + Find source of possible bug using POCL 1.7 and #'reduce-example from
   examples/mapreduce.lisp.  On an old Sony Vaio laptop, this causes
   the SBCL image integrity to be compromised and hangs until the
@@ -5,6 +10,13 @@
   Need to test these examples on multiple systems running POCL 1.7 to
   see if it's a code issue, POCL issue in general, or just an issue on
   a single system.
+
+  UPDATE: Another system running POCL 1.8 on an Intel Core i7 has no
+  issues with #'reduce-example.  Will try POCL 1.7 on the same system.
+
+  UPDATE: POCL 1.7-2 from Arch Linux works fine on the Core i7 system.
+  Will try upgrading POCL to 1.8 on the Vaio system to see if bugs
+  persist.
 
 + Add support for either parameter lists or single buffer arguments to
   all "make-opencl-*"-generated functions so that either data supplied
