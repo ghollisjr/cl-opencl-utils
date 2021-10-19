@@ -13,6 +13,6 @@ function at the end of the body."
     `(let* ((,rc ,return-cleanup)
             (,var (first ,rc))
             (,cleanup (second ,rc))
-            (,retval (progn ,@body)))
+            (,retval (multiple-value-list (progn ,@body))))
        (funcall ,cleanup)
-       ,retval)))
+       (apply #'values ,retval))))
