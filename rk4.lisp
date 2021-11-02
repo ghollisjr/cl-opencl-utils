@@ -182,7 +182,7 @@ the kernel is called."
                    (let* ((evs (copy-list events)))
                      (loop
                         for kernel in kernels
-                        do 
+                        do
                           (cl-set-kernel-arg kernel 1 :value buf)
                           (cl-set-kernel-arg kernel 2 :value (first kbufs))
                           (push (cl-enqueue-kernel queue kernel y-count
@@ -209,7 +209,7 @@ the kernel is called."
                    (let* ((evs (copy-list events)))
                      (loop
                         for kernel in kernels
-                        do 
+                        do
                           (cl-set-kernel-arg kernel 1 :value tmpbuf)
                           (cl-set-kernel-arg kernel 2 :value (second kbufs))
                           (push (cl-enqueue-kernel queue kernel y-count
@@ -233,7 +233,7 @@ the kernel is called."
                    (let* ((evs (copy-list events)))
                      (loop
                         for kernel in kernels
-                        do 
+                        do
                           (cl-set-kernel-arg kernel 2 :value (third kbufs))
                           (push (cl-enqueue-kernel queue kernel y-count
                                                    :event-wait-list
@@ -262,7 +262,7 @@ the kernel is called."
                    (let* ((evs (copy-list events)))
                      (loop
                         for kernel in kernels
-                        do 
+                        do
                           (cl-set-kernel-arg kernel 2 :value (fourth kbufs))
                           (push (cl-enqueue-kernel queue kernel y-count
                                                    :event-wait-list
@@ -322,7 +322,7 @@ the kernel is called."
                    (cl-release-mem-object pbuf))
                  (loop
                     for kernel in kernels
-                    do 
+                    do
                       (cl-release-kernel kernel))
                  (cl-release-program program)))
         (loop
