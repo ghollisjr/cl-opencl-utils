@@ -1,3 +1,25 @@
++ Find some way to automate handler-cleanup function generation.
+
+  UPDATE: Created handler branch.
+  
+  UPDATE: After some thought, the approach taken in the
+  make-opencl-handler function from the handler branch is not as
+  useful as first thought.  E.g., the make-opencl-rk4 function doesn't
+  benefit much from porting to the make-opencl-handler system since
+  the buffer-argument one-to-one relationship doesn't fully apply to
+  all parameters (e.g. x0 and xbuf), and additionally the "k" buffers
+  are easier to treat as a set of buffers rather than parameters.
+  There is almost no added benefit to using make-opencl-handler for
+  this function, and I anticipate that this will be true for many
+  others as well.  The problem of creating a handler and cleanup
+  function seems to be the crux of creating useful OpenCL interfaces,
+  and so each type of handler represents a class of problems and
+  solutions, but other problems will have significantly different
+  solutions and therefore the various solutions cannot be abstracted
+  easily into a common solution.  What might be more helpful is
+  writing a guide and some templates/checklists for writing handlers
+  and cleanup functions.
+
 + While testing POCL 1.8 on the Core i7 system, I noticed that
   repeatedly calling #'reduce-example using POCL leads to gradual
   device memory use increase, whereas doing the same using an NVIDIA
