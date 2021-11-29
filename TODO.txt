@@ -1,3 +1,14 @@
+- Resolve bugs on NVIDIA Jetson Nanos:
+
+  - examples/rk4.lisp: Lisp image corruption
+  - examples/axpy.lisp: Lisp image corruption
+
+  UPDATE: It seems the POCL implementation on the nanos does not
+  support double precision floating point operations.  I don't know
+  when this would ever be fixed, but for the future testing on the
+  nanos requires :float types.  Examples should probably be written
+  with flexible type arguments in any case.
+
 + Find some way to automate handler-cleanup function generation.
 
   UPDATE: Created handler branch.
