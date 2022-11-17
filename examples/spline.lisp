@@ -2,9 +2,10 @@
 (require 'cl-opencl)
 (require 'cl-opencl-utils)
 (defpackage #:spline-example
-  (:use :cl
-        :cl-opencl
-        :cl-opencl-utils))
+  (:use
+   :cl
+   :cl-opencl
+   :cl-opencl-utils))
 (cl-ana.package-utils:use-package-group :cl-ana :spline-example)
 (in-package :spline-example)
 
@@ -41,17 +42,17 @@
                                        :type type
                                        :count nsamples))
              (samples
-              (first
-               (last
-                (cl-wait-and-release-events
-                 (list (funcall sampler outbuf
-                                :low 1d0
-                                :high 5d0
-                                :nsamples nsamples)
-                       (cl-enqueue-read-buffer queue
-                                               outbuf
-                                               type
-                                               nsamples)))))))
+               (first
+                (last
+                 (cl-wait-and-release-events
+                  (list (funcall sampler outbuf
+                                 :low 1d0
+                                 :high 5d0
+                                 :nsamples nsamples)
+                        (cl-enqueue-read-buffer queue
+                                                outbuf
+                                                type
+                                                nsamples)))))))
         (setf samples (coerce samples 'list))
         (funcall cleanup)
         (cl-release-mem-object outbuf)

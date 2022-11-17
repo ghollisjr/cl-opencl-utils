@@ -9,7 +9,7 @@
 (require 'cl-cerf)
 (defpackage #:convolution-example
   (:use :cl
-        :cl-opencl
+   :cl-opencl
         :cl-opencl-utils))
 (cl-ana.package-utils:use-package-group :cl-ana :convolution-example)
 (in-package :convolution-example)
@@ -33,14 +33,14 @@
                       plat
                       +CL-DEVICE-TYPE-ALL+)))
          (gauss-expr
-          ;; note that gaussian has been shadowed by cl-ana
-          (opencl-function-expr 'cl-opencl-utils:gaussian)))
+           ;; note that gaussian has been shadowed by cl-ana
+           (opencl-function-expr 'cl-opencl-utils:gaussian)))
     (with-opencl-context
         (context plat (list dev))
       (with-opencl-command-queue
           (queue context dev
-                 :properties
-                 (list +CL-QUEUE-OUT-OF-ORDER-EXEC-MODE-ENABLE+))
+           :properties
+           (list +CL-QUEUE-OUT-OF-ORDER-EXEC-MODE-ENABLE+))
         (with-opencl-cleanup
             (convolutor
              (make-opencl-convolutor queue
@@ -79,7 +79,7 @@
                       plat
                       +CL-DEVICE-TYPE-ALL+)))
          (gauss-expr
-          (opencl-function-expr 'cl-opencl-utils:gaussian)))
+           (opencl-function-expr 'cl-opencl-utils:gaussian)))
 
     (with-opencl-context
         (context plat (list dev))
@@ -97,12 +97,12 @@
                                      :type :double
                                      :ndomain ndomain))
           (let* ((result
-                  (sample-function (lambda (x)
-                                     (funcall convolutor
-                                              x
-                                              :params-A (list 1d0 0d0 1d0)
-                                              :params-B (list 1d0 0d0 1d0)))
-                                   -3d0 3d0 nsamples)))
+                   (sample-function (lambda (x)
+                                      (funcall convolutor
+                                               x
+                                               :params-A (list 1d0 0d0 1d0)
+                                               :params-B (list 1d0 0d0 1d0)))
+                                    -3d0 3d0 nsamples)))
             result))))))
 
 ;; For comparison: CPU convolution
@@ -118,22 +118,22 @@ mapping from numbers to numbers."
     (let* ((npoints (floor (/ (- high low) step))))
       (lambda (x)
         (loop
-           for i below npoints
-           for y = (+ (* 0.5d0 step) low) then (+ y step)
-           summing (* step
-                      (funcall fnA (- x y))
-                      (funcall fnB y)))))))
+          for i below npoints
+          for y = (+ (* 0.5d0 step) low) then (+ y step)
+          summing (* step
+                     (funcall fnA (- x y))
+                     (funcall fnB y)))))))
 (defun slow-convolution-example-1 (&optional (ndomain 1000))
   (let* ((domain (cons -3.0 3.0))
          (step (/ (- (cdr domain) (car domain))
                   ndomain))
          (convolutor
-          (convolution (alexandria:curry #'gaussian
-                                         (list 1d0 0d0 1d0))
-                       (alexandria:curry #'gaussian
-                                         (list 1d0 0d0 1d0))
-                       domain
-                       :step step)))
+           (convolution (alexandria:curry #'gaussian
+                                          (list 1d0 0d0 1d0))
+                        (alexandria:curry #'gaussian
+                                          (list 1d0 0d0 1d0))
+                        domain
+                        :step step)))
     (draw
      (page (list
             (plot2d (list
@@ -239,11 +239,11 @@ mapping from numbers to numbers."
                                      :nparams-B 2
                                      :ndomain ndomain))
           (let* ((result
-                  (sample-function
-                   (lambda (x)
-                     (funcall convolutor
-                              x
-                              :params-A (list 1d0 0d0 1d0)
-                              :params-B (list 0d0 1d0)))
-                   -3d0 3d0 1000)))
+                   (sample-function
+                    (lambda (x)
+                      (funcall convolutor
+                               x
+                               :params-A (list 1d0 0d0 1d0)
+                               :params-B (list 0d0 1d0)))
+                    -3d0 3d0 1000)))
             result))))))

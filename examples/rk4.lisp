@@ -52,11 +52,11 @@
     ;; 1. dy/dx = y
     (0 (setf (aref dy gid)
              (aref y gid))
-       (break))
+     (break))
     ;; 2. dy/dx = x
     (1 (setf (aref dy gid)
              (value x))
-       (break))))
+     (break))))
 
 (defun rk4-example (&optional (nsteps 1000))
   (let* ((plat (first (cl-get-platform-ids)))
@@ -78,9 +78,9 @@
                                          :type :double
                                          :data y0)))
             (loop
-               for i to nsteps
-               for x = (+ x0 h) then (+ x h)
-               do (let* ((nextys
+              for i to nsteps
+              for x = (+ x0 h) then (+ x h)
+              do (let* ((nextys
                           (first
                            (last
                             (cl-wait-and-release-events
@@ -89,17 +89,16 @@
                                             :x-delta h)
                                    (cl-enqueue-read-buffer
                                     queue ybuf :double 2)))))))
-                    (push (cons x (aref nextys 0))
-                          y1)
-                    (push (cons x (aref nextys 1))
-                          y2)))
+                   (push (cons x (aref nextys 0))
+                         y1)
+                   (push (cons x (aref nextys 1))
+                         y2)))
             (cl-release-mem-object ybuf)
             (list (nreverse y1)
                   (nreverse y2))))))))
 
 ;;;; A more involved example where coupled pendulums
 ;; (defclckernel coupled_pendulums_dydx
-;;     ((var n 
+;;     ((var n
 
 ;; (defun coupled-pendulums-example (&optional (npendulums 10))
-  

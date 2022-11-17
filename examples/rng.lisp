@@ -1,8 +1,9 @@
 (require 'cl-opencl-utils)
 (defpackage #:rng-example
-  (:use :cl
-        :cl-opencl
-        :cl-opencl-utils))
+  (:use
+   :cl
+   :cl-opencl
+   :cl-opencl-utils))
 (in-package :rng-example)
 
 (defclckernel rngtest
@@ -41,23 +42,23 @@
                                        :type :uint
                                        :count n))
                (program
-                (let* ((p
-                        (cl-create-program-with-source
-                         context
-                         (program-source-from-kernels rngtest))))
-                  (cl-build-program-with-log p (list dev))
-                  p))
+                 (let* ((p
+                          (cl-create-program-with-source
+                           context
+                           (program-source-from-kernels rngtest))))
+                   (cl-build-program-with-log p (list dev))
+                   p))
                (kernel (cl-create-kernel program "rngtest")))
           (cl-set-kernel-arg kernel 0 :value nbuf)
           (cl-set-kernel-arg kernel 1 :value sbuf)
           (cl-set-kernel-arg kernel 2 :value rbuf)
           (let* ((result
-                  (first
-                   (last
-                    (cl-wait-and-release-events
-                     (list (cl-enqueue-kernel queue kernel n)
-                           (cl-enqueue-read-buffer
-                            queue rbuf :uint n)))))))
+                   (first
+                    (last
+                     (cl-wait-and-release-events
+                      (list (cl-enqueue-kernel queue kernel n)
+                            (cl-enqueue-read-buffer
+                             queue rbuf :uint n)))))))
             (cl-release-kernel kernel)
             (cl-release-program program)
             (mapcar #'cl-release-mem-object
@@ -99,23 +100,23 @@
                                        :type :double
                                        :count n))
                (program
-                (let* ((p
-                        (cl-create-program-with-source
-                         context
-                         (program-source-from-kernels uniformtest))))
-                  (cl-build-program-with-log p (list dev))
-                  p))
+                 (let* ((p
+                          (cl-create-program-with-source
+                           context
+                           (program-source-from-kernels uniformtest))))
+                   (cl-build-program-with-log p (list dev))
+                   p))
                (kernel (cl-create-kernel program "uniformtest")))
           (cl-set-kernel-arg kernel 0 :value nbuf)
           (cl-set-kernel-arg kernel 1 :value sbuf)
           (cl-set-kernel-arg kernel 2 :value rbuf)
           (let* ((result
-                  (first
-                   (last
-                    (cl-wait-and-release-events
-                     (list (cl-enqueue-kernel queue kernel n)
-                           (cl-enqueue-read-buffer
-                            queue rbuf :double n)))))))
+                   (first
+                    (last
+                     (cl-wait-and-release-events
+                      (list (cl-enqueue-kernel queue kernel n)
+                            (cl-enqueue-read-buffer
+                             queue rbuf :double n)))))))
             (cl-release-kernel kernel)
             (cl-release-program program)
             (mapcar #'cl-release-mem-object

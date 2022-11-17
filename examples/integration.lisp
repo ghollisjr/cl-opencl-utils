@@ -3,9 +3,10 @@
 (require 'cl-ana)
 
 (defpackage #:integration-example
-  (:use :cl
-        :cl-opencl
-        :cl-opencl-utils))
+  (:use
+   :cl
+   :cl-opencl
+   :cl-opencl-utils))
 (cl-ana.package-utils:use-package-group :cl-ana :integration-example)
 
 (in-package :integration-example)

@@ -1,9 +1,10 @@
 (require 'cl-opencl-utils)
 (require 'cl-ana)
 (defpackage #:yahtzee
-  (:use :cl
-        :cl-opencl
-        :cl-opencl-utils))
+  (:use
+   :cl
+   :cl-opencl
+   :cl-opencl-utils))
 (cl-ana.package-utils:use-package-group :cl-ana :yahtzee)
 (in-package :yahtzee)
 
@@ -122,8 +123,8 @@
                   0)))
   ;; This is the safe way:
   #|(if (complete_scoresheet sht)
-        (return tmp)
-        (return 0))|#
+  (return tmp)
+  (return 0))|#
   ;; This is the fast way:
   (return tmp))
 
@@ -152,7 +153,7 @@
   (for (var i :uchar 0) (< i 5) (incf i)
        (incf (aref counts
                    (aref dice i)))))
-  
+
 ;; find most popular dice value
 (defclcfun mostpopular :void
     ((var dice (pointer :uchar))
@@ -445,40 +446,40 @@
     (with-opencl-context (context plat (list dev))
       (with-opencl-command-queue (queue context dev)
         (let* ((nbuf
-                (cl-create-buffer context
-                                  :type :ulong
-                                  :data (list ngames)))
+                 (cl-create-buffer context
+                                   :type :ulong
+                                   :data (list ngames)))
                (sbuf
-                (cl-create-buffer context
-                                  :type :ulong
-                                  :data
-                                  (list
-                                   (mod (* (get-internal-real-time)
-                                           (get-internal-real-time))
-                                        (expt 2 64)))))
+                 (cl-create-buffer context
+                                   :type :ulong
+                                   :data
+                                   (list
+                                    (mod (* (get-internal-real-time)
+                                            (get-internal-real-time))
+                                         (expt 2 64)))))
                (rbuf
-                (cl-create-buffer context
-                                  :type :ushort
-                                  :count ngames))
+                 (cl-create-buffer context
+                                   :type :ushort
+                                   :count ngames))
                (program
-                (let* ((p
-                        (cl-create-program-with-source
-                         context
-                         (program-source-from-kernels yahtzee))))
-                  (cl-build-program-with-log p (list dev))
-                  p))
+                 (let* ((p
+                          (cl-create-program-with-source
+                           context
+                           (program-source-from-kernels yahtzee))))
+                   (cl-build-program-with-log p (list dev))
+                   p))
                (kernel
-                (cl-create-kernel program "yahtzee")))
+                 (cl-create-kernel program "yahtzee")))
           (cl-set-kernel-arg kernel 0 :value nbuf)
           (cl-set-kernel-arg kernel 1 :value sbuf)
           (cl-set-kernel-arg kernel 2 :value rbuf)
           (let* ((result
-                  (first
-                   (last
-                    (cl-wait-and-release-events
-                     (list (cl-enqueue-kernel queue kernel ngames)
-                           (cl-enqueue-read-buffer
-                            queue rbuf :ushort ngames)))))))
+                   (first
+                    (last
+                     (cl-wait-and-release-events
+                      (list (cl-enqueue-kernel queue kernel ngames)
+                            (cl-enqueue-read-buffer
+                             queue rbuf :ushort ngames)))))))
             (cl-release-kernel kernel)
             (cl-release-program program)
             (mapcar #'cl-release-mem-object
@@ -494,61 +495,61 @@
     (with-opencl-context (context plat (list dev))
       (with-opencl-command-queue (queue context dev)
         (let* ((nbuf
-                (cl-create-buffer context
-                                  :type :ulong
-                                  :data (list ngames)))
+                 (cl-create-buffer context
+                                   :type :ulong
+                                   :data (list ngames)))
                (sbuf
-                (cl-create-buffer context
-                                  :type :ulong
-                                  :data
-                                  (list
-                                   (mod (* (get-internal-real-time)
-                                           (get-internal-real-time))
-                                        (expt 2 64)))))
+                 (cl-create-buffer context
+                                   :type :ulong
+                                   :data
+                                   (list
+                                    (mod (* (get-internal-real-time)
+                                            (get-internal-real-time))
+                                         (expt 2 64)))))
                (rbuf
-                (cl-create-buffer context
-                                  :type :ulong
-                                  :count (1+ *maxscore*)))
+                 (cl-create-buffer context
+                                   :type :ulong
+                                   :count (1+ *maxscore*)))
                (inithistsource
-                `(kernel inithist
-                         ((var hist (global (:pointer :ulong))))
-                         (var gid (const :ulong)
-                              (get-global-id 0))
-                         (when (<= gid YAHTZEE_MAX_SCORE)
-                           (setf (aref hist gid) 0))))
+                 `(kernel inithist
+                          ((var hist (global (:pointer :ulong))))
+                          (var gid (const :ulong)
+                               (get-global-id 0))
+                          (when (<= gid YAHTZEE_MAX_SCORE)
+                            (setf (aref hist gid) 0))))
                (inithistprogram
-                (let* ((p
-                        (cl-create-program-with-source
-                         context
-                         (program-source-from-forms-fn
-                          inithistsource))))
-                  (cl-build-program-with-log p (list dev))
-                  p))
+                 (let* ((p
+                          (cl-create-program-with-source
+                           context
+                           (program-source-from-forms-fn
+                            inithistsource))))
+                   (cl-build-program-with-log p (list dev))
+                   p))
                (inithistkernel (cl-create-kernel inithistprogram "inithist"))
                (program
-                (let* ((p
-                        (cl-create-program-with-source
-                         context
-                         (concatenate
-                          'string
-                          (format nil "#pragma OPENCL EXTENSION cl_khr_int64_base_atomics : enable~%")
-                          (program-source-from-kernels yahtzeehist)))))
-                  (cl-build-program-with-log p (list dev))
-                  p))
+                 (let* ((p
+                          (cl-create-program-with-source
+                           context
+                           (concatenate
+                            'string
+                            (format nil "#pragma OPENCL EXTENSION cl_khr_int64_base_atomics : enable~%")
+                            (program-source-from-kernels yahtzeehist)))))
+                   (cl-build-program-with-log p (list dev))
+                   p))
                (kernel
-                (cl-create-kernel program "yahtzeehist")))
+                 (cl-create-kernel program "yahtzeehist")))
           (cl-set-kernel-arg inithistkernel 0 :value rbuf)
           (cl-set-kernel-arg kernel 0 :value nbuf)
           (cl-set-kernel-arg kernel 1 :value sbuf)
           (cl-set-kernel-arg kernel 2 :value rbuf)
           (let* ((result
-                  (first
-                   (last
-                    (cl-wait-and-release-events
-                     (list (cl-enqueue-kernel queue inithistkernel (1+ *maxscore*))
-                           (cl-enqueue-kernel queue kernel ngames)
-                           (cl-enqueue-read-buffer
-                            queue rbuf :ulong (1+ *maxscore*))))))))
+                   (first
+                    (last
+                     (cl-wait-and-release-events
+                      (list (cl-enqueue-kernel queue inithistkernel (1+ *maxscore*))
+                            (cl-enqueue-kernel queue kernel ngames)
+                            (cl-enqueue-read-buffer
+                             queue rbuf :ulong (1+ *maxscore*))))))))
             (cl-release-kernel inithistkernel)
             (cl-release-program inithistprogram)
             (cl-release-kernel kernel)
@@ -560,29 +561,29 @@
 (defun draw-yahtzee-hist (ngames)
   (let* ((rawhist (time (yahtzee-hist ngames)))
          (hist (zip (loop
-                       for i from 0 to *maxscore*
-                       collecting i)
+                      for i from 0 to *maxscore*
+                      collecting i)
                     (map 'list #'identity
                          rawhist)))
          (maxscore
-          (let* ((r 0))
-            (loop
+           (let* ((r 0))
+             (loop
                for i to *maxscore*
                when (not (zerop (aref rawhist i)))
-               do (setf r i))
-            r))
+                 do (setf r i))
+             r))
          (minscore
-          (let* ((r 0))
-            (loop
+           (let* ((r 0))
+             (loop
                for i from *maxscore* downto 0
                when (not (zerop (aref rawhist i)))
-               do (setf r i))
-            r))
+                 do (setf r i))
+             r))
          (meanscore (let* ((ngames 0)
                            (totalscore 0))
                       (loop
-                         for i to *maxscore*
-                         do
+                        for i to *maxscore*
+                        do
                            (incf ngames
                                  (aref rawhist i))
                            (incf totalscore

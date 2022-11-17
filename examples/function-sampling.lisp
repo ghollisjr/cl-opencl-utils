@@ -33,9 +33,9 @@
                       :high 3d0)))
       (funcall cleanup)
       (let* ((result
-              (cl-enqueue-read-buffer queue buf
-                                      :double nsamples
-                                      :blocking-p t)))
+               (cl-enqueue-read-buffer queue buf
+                                       :double nsamples
+                                       :blocking-p t)))
         (cl-release-mem-object buf)
         (cl-release-command-queue queue)
         (cl-release-context context)

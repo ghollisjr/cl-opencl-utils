@@ -19,7 +19,7 @@
 ;;;;   (defclcglobalvar (var SOME_GLOBAL ...))
 ;;;;
 ;;;;   would define some_global in C code.
-;;;; 
+;;;;
 ;;;; * The usual Lisp convention of +SOME-VARIABLE+ doesn't work as
 ;;;;   the + symbol is not removed.  This might be changed at some
 ;;;;   point, but it seems like something that would add unnecessary
@@ -66,22 +66,22 @@
                                        :type :double
                                        :count ndata))
                (program
-                (let* ((p (cl-create-program-with-source
-                           context
-                           (program-source-from-kernels gvartest))))
-                  (cl-build-program-with-log p (list dev))
-                  p))
+                 (let* ((p (cl-create-program-with-source
+                            context
+                            (program-source-from-kernels gvartest))))
+                   (cl-build-program-with-log p (list dev))
+                   p))
                (kernel (cl-create-kernel program "gvartest")))
           (cl-set-kernel-arg kernel 0 :value nbuf)
           (cl-set-kernel-arg kernel 1 :value dbuf)
           (cl-set-kernel-arg kernel 2 :value rbuf)
           (let* ((result
-                  (first
-                   (last
-                    (cl-wait-and-release-events
-                     (list
-                      (cl-enqueue-kernel queue kernel ndata)
-                      (cl-enqueue-read-buffer queue rbuf :double ndata)))))))
+                   (first
+                    (last
+                     (cl-wait-and-release-events
+                      (list
+                       (cl-enqueue-kernel queue kernel ndata)
+                       (cl-enqueue-read-buffer queue rbuf :double ndata)))))))
             (cl-release-kernel kernel)
             (cl-release-program program)
             (mapcar #'cl-release-mem-object
