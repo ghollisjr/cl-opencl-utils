@@ -3,7 +3,7 @@
 (require 'cl-ana)
 (defpackage #:cerf-example
   (:use :cl
-        :cl-opencl
+   :cl-opencl
         :cl-opencl-utils))
 (cl-ana.package-utils::use-package-group :cl-ana :cerf-example)
 (in-package :cerf-example)
@@ -25,31 +25,31 @@
                                :domain-type :double
                                :range-type '(:struct cl_complex)))
           (let* ((samplebuf
-                  (cl-create-buffer context
-                                    :type '(:struct cl_complex)
-                                    :count nsamples))
+                   (cl-create-buffer context
+                                     :type '(:struct cl_complex)
+                                     :count nsamples))
                  (samples
-                  (map
-                   'list #'identity
-                   (first
-                    (last
-                     (cl-wait-and-release-events
-                      (list (funcall sampler
-                                     samplebuf
-                                     :nsamples nsamples
-                                     :low xmin
-                                     :high xmax)
-                            (cl-enqueue-read-buffer queue
-                                                    samplebuf
-                                                    '(:struct cl_complex)
-                                                    nsamples)))))))
+                   (map
+                    'list #'identity
+                    (first
+                     (last
+                      (cl-wait-and-release-events
+                       (list (funcall sampler
+                                      samplebuf
+                                      :nsamples nsamples
+                                      :low xmin
+                                      :high xmax)
+                             (cl-enqueue-read-buffer queue
+                                                     samplebuf
+                                                     '(:struct cl_complex)
+                                                     nsamples)))))))
                  (reals (mapcar #'realpart samples))
                  (imags (mapcar #'imagpart samples))
                  (lisp-samples
-                  (cdrs (sample-function
-                         (lambda (x)
-                           (cl-cerf:dawson (complex x x)))
-                         xmin xmax nsamples)))
+                   (cdrs (sample-function
+                          (lambda (x)
+                            (cl-cerf:dawson (complex x x)))
+                          xmin xmax nsamples)))
                  (lisp-reals (mapcar #'realpart lisp-samples))
                  (lisp-imags (mapcar #'imagpart lisp-samples)))
             (cl-release-mem-object samplebuf)
@@ -67,8 +67,7 @@
                                    :style "lines")
                              (line (zip lisp-reals lisp-imags)
                                    :title "lisp joined"
-                                   :style "lines"))))))
-            ))))))
+                                   :style "lines"))))))))))))
 
 (defun cerf-example-2 (&key
                          (nsamples 1000)
@@ -87,36 +86,36 @@
                                :domain-type :double
                                :range-type :double))
           (let* ((samplebuf
-                  (cl-create-buffer context
-                                    :type :double
-                                    :count nsamples))
+                   (cl-create-buffer context
+                                     :type :double
+                                     :count nsamples))
                  (xs (cdrs
                       (sample-function #'identity
                                        xmin
                                        xmax
                                        nsamples)))
                  (samples
-                  (map
-                   'list #'identity
-                   (first
-                    (last
-                     (cl-wait-and-release-events
-                      (list (funcall sampler
-                                     samplebuf
-                                     :nsamples nsamples
-                                     :low xmin
-                                     :high xmax)
-                            (cl-enqueue-read-buffer queue
-                                                    samplebuf
-                                                    :double
-                                                    nsamples)))))))
+                   (map
+                    'list #'identity
+                    (first
+                     (last
+                      (cl-wait-and-release-events
+                       (list (funcall sampler
+                                      samplebuf
+                                      :nsamples nsamples
+                                      :low xmin
+                                      :high xmax)
+                             (cl-enqueue-read-buffer queue
+                                                     samplebuf
+                                                     :double
+                                                     nsamples)))))))
                  (reals samples)
                  (imags xs)
                  (lisp-samples
-                  (cdrs (sample-function
-                         (lambda (x)
-                           (cl-cerf:erfcx x))
-                         xmin xmax nsamples)))
+                   (cdrs (sample-function
+                          (lambda (x)
+                            (cl-cerf:erfcx x))
+                          xmin xmax nsamples)))
                  (lisp-reals lisp-samples)
                  (lisp-imags xs))
             (cl-release-mem-object samplebuf)
@@ -134,5 +133,4 @@
                                    :style "lines")
                              (line (zip lisp-reals lisp-imags)
                                    :title "lisp joined"
-                                   :style "lines"))))))
-            ))))))
+                                   :style "lines"))))))))))))
